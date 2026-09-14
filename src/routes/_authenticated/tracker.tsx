@@ -339,10 +339,6 @@ function TrackerPage() {
                   {rotating ? "Generating…" : "Regenerate key"}
                 </Button>
               </div>
-              <p className="mt-3 text-xs text-muted-foreground">
-                The app sends the key plus latitude, longitude and battery to{" "}
-                <code className="font-mono">/api/public/beacon</code>.
-              </p>
             </div>
           )}
         </aside>
