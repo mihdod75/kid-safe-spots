@@ -106,6 +106,7 @@ function TrackerPage() {
             <ClientOnly fallback={<MapPlaceholder text="Loading the map…" />}>
               <Suspense fallback={<MapPlaceholder text="Loading the map…" />}>
                 <ChildMap
+                  ref={mapRef}
                   latitude={data.position.latitude}
                   longitude={data.position.longitude}
                   label={data.device.childName}
@@ -120,6 +121,17 @@ function TrackerPage() {
                   : "Waiting for the first signal from the beacon app."
               }
             />
+          )}
+          {data?.position && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="absolute bottom-4 right-4 shadow-sm"
+              onClick={() => mapRef.current?.recenter()}
+              aria-label="Re-center map on last seen location"
+            >
+              Re-center
+            </Button>
           )}
         </section>
 
