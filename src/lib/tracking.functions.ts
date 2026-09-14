@@ -48,7 +48,7 @@ export const getTracker = createServerFn({ method: "GET" })
         .insert({ owner_id: userId, child_name: "Demo child", is_demo: true })
         .select("*")
         .single();
-      if (inserted.error) throw inserted.error;
+      if (inserted.error) failSafely(inserted.error, "Could not set up the tracker.");
       device = inserted.data;
     }
 
