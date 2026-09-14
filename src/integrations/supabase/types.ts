@@ -14,7 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      devices: {
+        Row: {
+          battery_level: number | null
+          child_name: string
+          created_at: string
+          id: string
+          is_demo: boolean
+          last_seen_at: string | null
+          owner_id: string
+          pairing_key: string
+        }
+        Insert: {
+          battery_level?: number | null
+          child_name?: string
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          last_seen_at?: string | null
+          owner_id: string
+          pairing_key?: string
+        }
+        Update: {
+          battery_level?: number | null
+          child_name?: string
+          created_at?: string
+          id?: string
+          is_demo?: boolean
+          last_seen_at?: string | null
+          owner_id?: string
+          pairing_key?: string
+        }
+        Relationships: []
+      }
+      locations: {
+        Row: {
+          accuracy_m: number | null
+          battery_level: number | null
+          device_id: string
+          id: string
+          latitude: number
+          longitude: number
+          recorded_at: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          battery_level?: number | null
+          device_id: string
+          id?: string
+          latitude: number
+          longitude: number
+          recorded_at?: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          battery_level?: number | null
+          device_id?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          recorded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "locations_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          display_name: string | null
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          display_name?: string | null
+          id: string
+        }
+        Update: {
+          created_at?: string
+          display_name?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
