@@ -20,6 +20,12 @@ export type TrackerSnapshot = {
 
 const DEMO_START = { lat: 44.4396, lng: 26.0963 }; // Bucharest
 
+// Keep database details server-side; the browser only ever sees a safe message.
+function failSafely(error: unknown, userMessage: string): never {
+  console.error(userMessage, error);
+  throw new Error(userMessage);
+}
+
 export const getTracker = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<TrackerSnapshot> => {
@@ -42,7 +48,7 @@ export const getTracker = createServerFn({ method: "GET" })
         .insert({ owner_id: userId, child_name: "Demo child", is_demo: true })
         .select("*")
         .single();
-      if (inserted.error) throw inserted.error;
+      if (inserted.error) failSafely(inserted.error, "Could not set up the tracker.");
       device = inserted.data;
     }
 
@@ -83,7 +89,7 @@ export const getTracker = createServerFn({ method: "GET" })
           })
           .select("*")
           .single();
-        if (created.error) throw created.error;
+        if (created.error) failSafely(created.error, "Could not update the location.");
         latest = created.data;
 
         const updated = await supabase
@@ -129,7 +135,7 @@ export const renameChild = createServerFn({ method: "POST" })
       .update({ child_name: data.childName })
       .eq("id", data.deviceId)
       .eq("owner_id", context.userId);
-    if (error) throw error;
+    if (error) failSafely(error, "Could not save the name.");
     return { ok: true };
   });
 
@@ -151,6 +157,6 @@ export const regeneratePairingKey = createServerFn({ method: "POST" })
       .eq("owner_id", context.userId)
       .select("pairing_key")
       .single();
-    if (error) throw error;
+    if (error) failSafely(error, "Could not create a new key.");
     return { pairingKey: updated.pairing_key };
   });
