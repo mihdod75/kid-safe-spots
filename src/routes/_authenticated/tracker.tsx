@@ -56,16 +56,45 @@ function TrackerPage() {
   const [editing, setEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
 
+  const [live, setLive] = useState(false);
+
   const { data, isPending, isError, refetch, isFetching } = useQuery({
     queryKey: ["tracker"],
     queryFn: () => fetchTracker(),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 10_000);
     return () => clearInterval(id);
   }, []);
+
+  const deviceId = data?.device.id;
+  useEffect(() => {
+    if (!deviceId) return;
+    const channel = supabase
+      .channel(`locations-${deviceId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "locations",
+          filter: `device_id=eq.${deviceId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["tracker"] });
+        },
+      )
+      .subscribe((status) => {
+        setLive(status === "SUBSCRIBED");
+      });
+
+    return () => {
+      setLive(false);
+      supabase.removeChannel(channel);
+    };
+  }, [deviceId, queryClient]);
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
