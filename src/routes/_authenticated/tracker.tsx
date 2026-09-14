@@ -56,16 +56,45 @@ function TrackerPage() {
   const [editing, setEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
 
+  const [live, setLive] = useState(false);
+
   const { data, isPending, isError, refetch, isFetching } = useQuery({
     queryKey: ["tracker"],
     queryFn: () => fetchTracker(),
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 10_000);
     return () => clearInterval(id);
   }, []);
+
+  const deviceId = data?.device.id;
+  useEffect(() => {
+    if (!deviceId) return;
+    const channel = supabase
+      .channel(`locations-${deviceId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "locations",
+          filter: `device_id=eq.${deviceId}`,
+        },
+        () => {
+          queryClient.invalidateQueries({ queryKey: ["tracker"] });
+        },
+      )
+      .subscribe((status) => {
+        setLive(status === "SUBSCRIBED");
+      });
+
+    return () => {
+      setLive(false);
+      supabase.removeChannel(channel);
+    };
+  }, [deviceId, queryClient]);
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
@@ -161,7 +190,15 @@ function TrackerPage() {
           <div className="rounded-xl border border-border bg-card p-5">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs uppercase tracking-wide text-muted-foreground">Tracking</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Tracking</p>
+                  {live && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+                      <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
+                      Live
+                    </span>
+                  )}
+                </div>
                 {editing ? (
                   <div className="mt-2 flex gap-2">
                     <Input
