@@ -135,7 +135,7 @@ export const renameChild = createServerFn({ method: "POST" })
       .update({ child_name: data.childName })
       .eq("id", data.deviceId)
       .eq("owner_id", context.userId);
-    if (error) throw error;
+    if (error) failSafely(error, "Could not save the name.");
     return { ok: true };
   });
 
