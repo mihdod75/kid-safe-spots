@@ -5,7 +5,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ClientOnly } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import { getTracker, renameChild } from "@/lib/tracking.functions";
+import { getTracker, renameChild, regeneratePairingKey } from "@/lib/tracking.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
