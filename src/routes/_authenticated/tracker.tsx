@@ -59,11 +59,32 @@ function TrackerPage() {
   const [live, setLive] = useState(false);
   const [keyVisible, setKeyVisible] = useState(false);
 
-  const { data, isPending, isError, refetch, isFetching } = useQuery({
+  const { data, isPending, isError, error, refetch, isFetching } = useQuery({
     queryKey: ["tracker"],
-    queryFn: () => fetchTracker(),
+    queryFn: async () => {
+      try {
+        return await fetchTracker();
+      } catch (err) {
+        // An expired access token makes the server reject the call; refresh the
+        // session once and try again before giving up.
+        if (err instanceof Error && /unauthor/i.test(err.message)) {
+          const { data: refreshed } = await supabase.auth.refreshSession();
+          if (refreshed.session) return await fetchTracker();
+        }
+        throw err;
+      }
+    },
+    retry: false,
     refetchInterval: 60_000,
   });
+
+  // Session is really gone — send the parent back to sign in instead of
+  // leaving a blank page behind.
+  useEffect(() => {
+    if (error instanceof Error && /unauthor/i.test(error.message)) {
+      navigate({ to: "/auth", replace: true });
+    }
+  }, [error, navigate]);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 10_000);
