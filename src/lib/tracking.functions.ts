@@ -157,6 +157,6 @@ export const regeneratePairingKey = createServerFn({ method: "POST" })
       .eq("owner_id", context.userId)
       .select("pairing_key")
       .single();
-    if (error) throw error;
+    if (error) failSafely(error, "Could not create a new key.");
     return { pairingKey: updated.pairing_key };
   });
