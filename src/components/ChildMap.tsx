@@ -85,11 +85,17 @@ export default function ChildMap({ latitude, longitude, label }: Props) {
 
   if (failed) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-muted p-6 text-center text-sm text-muted-foreground">
+      <div className="absolute inset-0 flex items-center justify-center bg-muted p-6 text-center text-sm text-muted-foreground">
         The map could not be loaded right now. The position is still being recorded.
       </div>
     );
   }
 
-  return <div ref={containerRef} className="h-full w-full" aria-label="Map showing the child's position" />;
+  return (
+    <div
+      ref={containerRef}
+      className="absolute inset-0 h-full w-full"
+      aria-label="Map showing the child's position"
+    />
+  );
 }
