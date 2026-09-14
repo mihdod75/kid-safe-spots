@@ -89,7 +89,7 @@ export const getTracker = createServerFn({ method: "GET" })
           })
           .select("*")
           .single();
-        if (created.error) throw created.error;
+        if (created.error) failSafely(created.error, "Could not update the location.");
         latest = created.data;
 
         const updated = await supabase
