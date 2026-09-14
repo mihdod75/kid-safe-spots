@@ -57,6 +57,7 @@ function TrackerPage() {
   const [nameDraft, setNameDraft] = useState("");
 
   const [live, setLive] = useState(false);
+  const [keyVisible, setKeyVisible] = useState(false);
 
   const { data, isPending, isError, refetch, isFetching } = useQuery({
     queryKey: ["tracker"],
@@ -287,9 +288,17 @@ function TrackerPage() {
                 Pairing key
               </p>
               <code className="mt-1 block break-all rounded-md bg-muted px-3 py-2 font-mono text-xs">
-                {data.device.pairingKey}
+                {keyVisible ? data.device.pairingKey : "•".repeat(32)}
               </code>
               <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setKeyVisible((v) => !v)}
+                  aria-pressed={keyVisible}
+                >
+                  {keyVisible ? "Hide key" : "Show key"}
+                </Button>
                 <Button
                   variant="outline"
                   size="sm"
