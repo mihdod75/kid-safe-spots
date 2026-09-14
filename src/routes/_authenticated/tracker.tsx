@@ -49,6 +49,7 @@ function TrackerPage() {
   const rename = useServerFn(renameChild);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const mapRef = useRef<{ recenter: () => void } | null>(null);
   const [, setTick] = useState(0);
   const [editing, setEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
