@@ -25,19 +25,53 @@ export const Route = createFileRoute("/api/public/beacon")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        let parsed;
+        let body: unknown;
         try {
-          parsed = bodySchema.parse(await request.json());
+          body = await request.json();
         } catch {
-          return json({ error: "Invalid payload" }, 400);
+          console.warn("[beacon] 400 malformed JSON body");
+          return json({ error: "Body is not valid JSON" }, 400);
         }
+
+        const result = bodySchema.safeParse(body);
+        if (!result.success) {
+          const issues = result.error.issues.map((issue) => ({
+            field: issue.path.join(".") || "(body)",
+            message: issue.message,
+          }));
+          console.warn("[beacon] 400 invalid payload", JSON.stringify(issues));
+          return json({ error: "Invalid payload", issues }, 400);
+        }
+        const parsed = result.data;
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
         const recordedAt = new Date(parsed.recorded_at);
         const ageMs = Date.now() - recordedAt.getTime();
-        if (ageMs > MAX_AGE_MS) return json({ error: "Reading too old" }, 400);
-        if (ageMs < -MAX_SKEW_MS) return json({ error: "Reading in the future" }, 400);
+        if (ageMs > MAX_AGE_MS) {
+          const seconds = Math.round(ageMs / 1000);
+          console.warn(`[beacon] 400 reading too old by ${seconds}s`);
+          return json(
+            {
+              error: `Reading too old: recorded_at is ${seconds}s in the past (max ${MAX_AGE_MS / 1000}s)`,
+              age_seconds: seconds,
+              server_time: new Date().toISOString(),
+            },
+            400,
+          );
+        }
+        if (ageMs < -MAX_SKEW_MS) {
+          const seconds = Math.round(-ageMs / 1000);
+          console.warn(`[beacon] 400 reading ${seconds}s in the future`);
+          return json(
+            {
+              error: `Reading in the future: recorded_at is ${seconds}s ahead of server time (max ${MAX_SKEW_MS / 1000}s)`,
+              ahead_seconds: seconds,
+              server_time: new Date().toISOString(),
+            },
+            400,
+          );
+        }
 
         const { data: device, error } = await supabaseAdmin
           .from("devices")
