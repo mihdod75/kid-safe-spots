@@ -132,3 +132,25 @@ export const renameChild = createServerFn({ method: "POST" })
     if (error) throw error;
     return { ok: true };
   });
+
+export const regeneratePairingKey = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { deviceId: string }) => {
+    if (!data?.deviceId) throw new Error("Missing device.");
+    return { deviceId: data.deviceId };
+  })
+  .handler(async ({ data, context }) => {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    const key = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+
+    const { data: updated, error } = await context.supabase
+      .from("devices")
+      .update({ pairing_key: key })
+      .eq("id", data.deviceId)
+      .eq("owner_id", context.userId)
+      .select("pairing_key")
+      .single();
+    if (error) throw error;
+    return { pairingKey: updated.pairing_key };
+  });
