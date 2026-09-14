@@ -7,8 +7,13 @@ const bodySchema = z.object({
   longitude: z.number().min(-180).max(180),
   accuracy_m: z.number().min(0).max(100000).optional(),
   battery_level: z.number().int().min(0).max(100).optional(),
-  recorded_at: z.string().datetime().optional(),
+  recorded_at: z.string().datetime(),
 });
+
+// How old a reading may be before we refuse it (replay protection).
+const MAX_AGE_MS = 5 * 60 * 1000;
+// Tolerance for a beacon clock running slightly ahead of ours.
+const MAX_SKEW_MS = 2 * 60 * 1000;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
