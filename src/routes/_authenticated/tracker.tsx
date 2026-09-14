@@ -173,7 +173,8 @@ function TrackerPage() {
   }
 
   const stale =
-    data?.position && Date.now() - new Date(data.position.recordedAt).getTime() > 10 * 60 * 1000;
+    data?.position &&
+    Date.now() - parseTimestamp(data.position.recordedAt).getTime() > 10 * 60 * 1000;
   const lowBattery = (data?.device.batteryLevel ?? 100) <= 20;
 
   return (
