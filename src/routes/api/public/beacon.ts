@@ -100,7 +100,15 @@ export const Route = createFileRoute("/api/public/beacon")({
             .eq("id", device.id);
         }
 
-        return json({ ok: true, applied: !isOutdated });
+        return json({
+          ok: true,
+          applied: !isOutdated,
+          clock_adjusted: clockAdjusted,
+          recorded_at: recordedAtIso,
+          ...(clockAdjusted
+            ? { note: "recorded_at was missing or out of range; server time was used" }
+            : {}),
+        });
       },
     },
   },
