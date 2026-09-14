@@ -1,9 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 
 type Props = {
   latitude: number;
   longitude: number;
   label: string;
+};
+
+export type ChildMapRef = {
+  recenter: () => void;
 };
 
 declare global {
