@@ -20,6 +20,12 @@ export type TrackerSnapshot = {
 
 const DEMO_START = { lat: 44.4396, lng: 26.0963 }; // Bucharest
 
+// Keep database details server-side; the browser only ever sees a safe message.
+function failSafely(error: unknown, userMessage: string): never {
+  console.error(userMessage, error);
+  throw new Error(userMessage);
+}
+
 export const getTracker = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<TrackerSnapshot> => {
