@@ -7,7 +7,7 @@ const bodySchema = z.object({
   longitude: z.number().min(-180).max(180),
   accuracy_m: z.number().min(0).max(100000).optional(),
   battery_level: z.number().int().min(0).max(100).optional(),
-  recorded_at: z.string().datetime(),
+  recorded_at: z.string().optional(),
 });
 
 // How old a reading may be before we refuse it (replay protection).
@@ -46,30 +46,18 @@ export const Route = createFileRoute("/api/public/beacon")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-        const recordedAt = new Date(parsed.recorded_at);
-        const ageMs = Date.now() - recordedAt.getTime();
-        if (ageMs > MAX_AGE_MS) {
-          const seconds = Math.round(ageMs / 1000);
-          console.warn(`[beacon] 400 reading too old by ${seconds}s`);
-          return json(
-            {
-              error: `Reading too old: recorded_at is ${seconds}s in the past (max ${MAX_AGE_MS / 1000}s)`,
-              age_seconds: seconds,
-              server_time: new Date().toISOString(),
-            },
-            400,
-          );
-        }
-        if (ageMs < -MAX_SKEW_MS) {
-          const seconds = Math.round(-ageMs / 1000);
-          console.warn(`[beacon] 400 reading ${seconds}s in the future`);
-          return json(
-            {
-              error: `Reading in the future: recorded_at is ${seconds}s ahead of server time (max ${MAX_SKEW_MS / 1000}s)`,
-              ahead_seconds: seconds,
-              server_time: new Date().toISOString(),
-            },
-            400,
+        // The beacon's clock is advisory: if it is missing, unparseable or too
+        // far from ours, fall back to server time instead of refusing the fix.
+        const now = new Date();
+        const sent = parsed.recorded_at ? new Date(parsed.recorded_at) : null;
+        const sentValid = sent !== null && !Number.isNaN(sent.getTime());
+        const ageMs = sentValid ? now.getTime() - sent!.getTime() : 0;
+        const withinWindow = sentValid && ageMs <= MAX_AGE_MS && ageMs >= -MAX_SKEW_MS;
+        const clockAdjusted = !withinWindow;
+        const recordedAt = withinWindow ? sent! : now;
+        if (clockAdjusted && parsed.recorded_at) {
+          console.warn(
+            `[beacon] clock adjusted: recorded_at="${parsed.recorded_at}" off by ${Math.round(ageMs / 1000)}s`,
           );
         }
 
@@ -112,7 +100,15 @@ export const Route = createFileRoute("/api/public/beacon")({
             .eq("id", device.id);
         }
 
-        return json({ ok: true, applied: !isOutdated });
+        return json({
+          ok: true,
+          applied: !isOutdated,
+          clock_adjusted: clockAdjusted,
+          recorded_at: recordedAtIso,
+          ...(clockAdjusted
+            ? { note: "recorded_at was missing or out of range; server time was used" }
+            : {}),
+        });
       },
     },
   },
