@@ -33,9 +33,24 @@ export const Route = createFileRoute("/_authenticated/tracker")({
   component: TrackerPage,
 });
 
+// Timestamps arrive as "2026-09-14 18:19:31+00", which some browsers parse as a
+// local time (shifting it by the time-zone offset). Normalise to strict ISO.
+function parseTimestamp(value: string) {
+  let s = value.trim().replace(" ", "T");
+  const offset = /([+-]\d{2})(?::?(\d{2}))?$/.exec(s);
+  if (offset) {
+    s = s.slice(0, offset.index) + offset[1] + ":" + (offset[2] ?? "00");
+  } else if (!/[zZ]$/.test(s)) {
+    s += "Z";
+  }
+  return new Date(s);
+}
+
 function timeAgo(iso: string | null) {
   if (!iso) return "never";
-  const seconds = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 1000));
+  const parsed = parseTimestamp(iso);
+  if (Number.isNaN(parsed.getTime())) return "unknown";
+  const seconds = Math.max(0, Math.round((Date.now() - parsed.getTime()) / 1000));
   if (seconds < 60) return `${seconds}s ago`;
   const minutes = Math.round(seconds / 60);
   if (minutes < 60) return `${minutes} min ago`;
@@ -158,7 +173,8 @@ function TrackerPage() {
   }
 
   const stale =
-    data?.position && Date.now() - new Date(data.position.recordedAt).getTime() > 10 * 60 * 1000;
+    data?.position &&
+    Date.now() - parseTimestamp(data.position.recordedAt).getTime() > 10 * 60 * 1000;
   const lowBattery = (data?.device.batteryLevel ?? 100) <= 20;
 
   return (
