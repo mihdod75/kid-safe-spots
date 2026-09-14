@@ -126,7 +126,7 @@ function TrackerPage() {
             <Button
               variant="secondary"
               size="sm"
-              className="absolute bottom-4 right-4 shadow-sm"
+              className="absolute bottom-4 left-4 shadow-sm"
               onClick={() => mapRef.current?.recenter()}
               aria-label="Re-center map on last seen location"
             >
