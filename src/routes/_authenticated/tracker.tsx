@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { ClientOnly } from "@tanstack/react-router";
 import { toast } from "sonner";
 
@@ -49,6 +49,7 @@ function TrackerPage() {
   const rename = useServerFn(renameChild);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const mapRef = useRef<{ recenter: () => void } | null>(null);
   const [, setTick] = useState(0);
   const [editing, setEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
@@ -105,6 +106,7 @@ function TrackerPage() {
             <ClientOnly fallback={<MapPlaceholder text="Loading the map…" />}>
               <Suspense fallback={<MapPlaceholder text="Loading the map…" />}>
                 <ChildMap
+                  ref={mapRef}
                   latitude={data.position.latitude}
                   longitude={data.position.longitude}
                   label={data.device.childName}
@@ -119,6 +121,17 @@ function TrackerPage() {
                   : "Waiting for the first signal from the beacon app."
               }
             />
+          )}
+          {data?.position && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="absolute bottom-4 right-4 shadow-sm"
+              onClick={() => mapRef.current?.recenter()}
+              aria-label="Re-center map on last seen location"
+            >
+              Re-center
+            </Button>
           )}
         </section>
 
