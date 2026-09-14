@@ -47,6 +47,8 @@ function timeAgo(iso: string | null) {
 function TrackerPage() {
   const fetchTracker = useServerFn(getTracker);
   const rename = useServerFn(renameChild);
+  const rotateKey = useServerFn(regeneratePairingKey);
+  const [rotating, setRotating] = useState(false);
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const mapRef = useRef<{ recenter: () => void } | null>(null);
@@ -81,6 +83,26 @@ function TrackerPage() {
       toast.success("Name updated");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save the name");
+    }
+  }
+
+  async function handleRegenerate() {
+    if (!data) return;
+    if (
+      !window.confirm(
+        "Generate a new pairing key? The beacon app will stop sending positions until you enter the new key.",
+      )
+    )
+      return;
+    setRotating(true);
+    try {
+      await rotateKey({ data: { deviceId: data.device.id } });
+      await refetch();
+      toast.success("New pairing key generated");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not regenerate the key");
+    } finally {
+      setRotating(false);
     }
   }
 
@@ -230,17 +252,26 @@ function TrackerPage() {
               <code className="mt-1 block break-all rounded-md bg-muted px-3 py-2 font-mono text-xs">
                 {data.device.pairingKey}
               </code>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-3"
-                onClick={() => {
-                  navigator.clipboard.writeText(data.device.pairingKey);
-                  toast.success("Pairing key copied");
-                }}
-              >
-                Copy key
-              </Button>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(data.device.pairingKey);
+                    toast.success("Pairing key copied");
+                  }}
+                >
+                  Copy key
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleRegenerate}
+                  disabled={rotating}
+                >
+                  {rotating ? "Generating…" : "Regenerate key"}
+                </Button>
+              </div>
               <p className="mt-3 text-xs text-muted-foreground">
                 The app sends the key plus latitude, longitude and battery to{" "}
                 <code className="font-mono">/api/public/beacon</code>.
