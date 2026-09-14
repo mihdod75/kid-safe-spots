@@ -113,4 +113,6 @@ const ChildMap = forwardRef<ChildMapRef, Props>(function ChildMap(
       aria-label="Map showing the child's position"
     />
   );
-}
+});
+
+export default ChildMap;
