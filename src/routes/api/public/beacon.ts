@@ -7,7 +7,7 @@ const bodySchema = z.object({
   longitude: z.number().min(-180).max(180),
   accuracy_m: z.number().min(0).max(100000).optional(),
   battery_level: z.number().int().min(0).max(100).optional(),
-  recorded_at: z.string().datetime(),
+  recorded_at: z.string().optional(),
 });
 
 // How old a reading may be before we refuse it (replay protection).
