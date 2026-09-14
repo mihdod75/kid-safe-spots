@@ -45,11 +45,22 @@ function loadMaps(): Promise<void> {
   return loaderPromise;
 }
 
-export default function ChildMap({ latitude, longitude, label }: Props) {
+const ChildMap = forwardRef<ChildMapRef, Props>(function ChildMap(
+  { latitude, longitude, label },
+  ref
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const markerRef = useRef<any>(null);
   const [failed, setFailed] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    recenter: () => {
+      if (mapRef.current) {
+        mapRef.current.panTo({ lat: latitude, lng: longitude });
+      }
+    },
+  }));
 
   useEffect(() => {
     let cancelled = false;
