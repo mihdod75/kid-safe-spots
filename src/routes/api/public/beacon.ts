@@ -7,8 +7,13 @@ const bodySchema = z.object({
   longitude: z.number().min(-180).max(180),
   accuracy_m: z.number().min(0).max(100000).optional(),
   battery_level: z.number().int().min(0).max(100).optional(),
-  recorded_at: z.string().datetime().optional(),
+  recorded_at: z.string().datetime(),
 });
+
+// How old a reading may be before we refuse it (replay protection).
+const MAX_AGE_MS = 5 * 60 * 1000;
+// Tolerance for a beacon clock running slightly ahead of ours.
+const MAX_SKEW_MS = 2 * 60 * 1000;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -29,15 +34,20 @@ export const Route = createFileRoute("/api/public/beacon")({
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
+        const recordedAt = new Date(parsed.recorded_at);
+        const ageMs = Date.now() - recordedAt.getTime();
+        if (ageMs > MAX_AGE_MS) return json({ error: "Reading too old" }, 400);
+        if (ageMs < -MAX_SKEW_MS) return json({ error: "Reading in the future" }, 400);
+
         const { data: device, error } = await supabaseAdmin
           .from("devices")
-          .select("id")
+          .select("id, last_seen_at")
           .eq("pairing_key", parsed.pairing_key)
           .maybeSingle();
 
         if (error || !device) return json({ error: "Unknown pairing key" }, 401);
 
-        const recordedAt = parsed.recorded_at ?? new Date().toISOString();
+        const recordedAtIso = recordedAt.toISOString();
 
         const insert = await supabaseAdmin.from("locations").insert({
           device_id: device.id,
@@ -45,22 +55,30 @@ export const Route = createFileRoute("/api/public/beacon")({
           longitude: parsed.longitude,
           accuracy_m: parsed.accuracy_m ?? null,
           battery_level: parsed.battery_level ?? null,
-          recorded_at: recordedAt,
+          recorded_at: recordedAtIso,
         });
         if (insert.error) return json({ error: "Could not store position" }, 500);
 
-        await supabaseAdmin
-          .from("devices")
-          .update({
-            last_seen_at: recordedAt,
-            is_demo: false,
-            ...(parsed.battery_level !== undefined
-              ? { battery_level: parsed.battery_level }
-              : {}),
-          })
-          .eq("id", device.id);
+        // A newer reading already arrived: keep the history row, but don't move
+        // the device back to this older position.
+        const isOutdated =
+          device.last_seen_at !== null &&
+          new Date(device.last_seen_at).getTime() >= recordedAt.getTime();
 
-        return json({ ok: true });
+        if (!isOutdated) {
+          await supabaseAdmin
+            .from("devices")
+            .update({
+              last_seen_at: recordedAtIso,
+              is_demo: false,
+              ...(parsed.battery_level !== undefined
+                ? { battery_level: parsed.battery_level }
+                : {}),
+            })
+            .eq("id", device.id);
+        }
+
+        return json({ ok: true, applied: !isOutdated });
       },
     },
   },
