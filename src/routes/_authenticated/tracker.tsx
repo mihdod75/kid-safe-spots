@@ -100,7 +100,7 @@ function TrackerPage() {
       </header>
 
       <main className="flex flex-1 flex-col gap-4 p-4 sm:p-6 lg:flex-row">
-        <section className="relative min-h-[320px] flex-1 overflow-hidden rounded-xl border border-border bg-muted lg:min-h-[calc(100vh-7rem)]">
+        <section className="relative h-[60vh] min-h-[320px] flex-1 overflow-hidden rounded-xl border border-border bg-muted lg:h-auto lg:min-h-[calc(100vh-7rem)]">
           {data?.position ? (
             <ClientOnly fallback={<MapPlaceholder text="Loading the map…" />}>
               <Suspense fallback={<MapPlaceholder text="Loading the map…" />}>
