@@ -6,6 +6,7 @@ export type BeaconSummary = {
   name: string;
   label: string | null;
   status: "none" | "pending" | "approved" | "declined";
+  watcherId: string | null;
 };
 
 export type BeaconSnapshot = {
@@ -44,7 +45,7 @@ export const listBeacons = createServerFn({ method: "GET" })
         .order("name"),
       supabase
         .from("beacon_watchers")
-        .select("beacon_id, label, status")
+        .select("id, beacon_id, label, status")
         .eq("user_id", userId),
     ]);
     if (error) failSafely(error, "Could not load the beacon list.");
@@ -61,6 +62,7 @@ export const listBeacons = createServerFn({ method: "GET" })
         name: b.name,
         label: watcher?.label ?? null,
         status: (watcher?.status as BeaconSummary["status"]) ?? "none",
+        watcherId: watcher?.id ?? null,
       };
     });
   });

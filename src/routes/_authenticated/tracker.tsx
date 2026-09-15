@@ -13,6 +13,7 @@ import {
   relabelBeacon,
   amIAdmin,
 } from "@/lib/tracking.functions";
+import { decideAccessRequest } from "@/lib/admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -73,6 +74,7 @@ function TrackerPage() {
   const unfollow = useServerFn(stopFollowing);
   const rename = useServerFn(relabelBeacon);
   const checkAdmin = useServerFn(amIAdmin);
+  const decide = useServerFn(decideAccessRequest);
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -197,6 +199,17 @@ function TrackerPage() {
       toast.success("Request sent — an admin will review it");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not send the request");
+    }
+  }
+
+  async function handleDecide(watcherId: string, approve: boolean, beaconId: string) {
+    try {
+      await decide({ data: { watcherId, approve } });
+      await listQuery.refetch();
+      if (approve) setSelectedId(beaconId);
+      toast.success(approve ? "Access approved" : "Request declined");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update the request");
     }
   }
 
@@ -392,7 +405,25 @@ function TrackerPage() {
                   className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
                 >
                   <span className="text-sm">{b.name}</span>
-                  {b.status === "pending" ? (
+                  {b.status !== "approved" && b.status !== "none" && adminQuery.data?.isAdmin && b.watcherId ? (
+                    <span className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {b.status === "pending" ? "Waiting for approval" : "Declined"}
+                      </span>
+                      <Button size="sm" onClick={() => handleDecide(b.watcherId!, true, b.id)}>
+                        Approve
+                      </Button>
+                      {b.status === "pending" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDecide(b.watcherId!, false, b.id)}
+                        >
+                          Decline
+                        </Button>
+                      )}
+                    </span>
+                  ) : b.status === "pending" ? (
                     <span className="text-xs text-muted-foreground">Waiting for approval</span>
                   ) : b.status === "declined" ? (
                     <span className="text-xs text-destructive">Declined</span>
