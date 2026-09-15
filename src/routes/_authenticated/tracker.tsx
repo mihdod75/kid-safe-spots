@@ -132,7 +132,15 @@ function TrackerPage() {
     refetchInterval: 60_000,
   });
 
-  const data = snapshot.data;
+  const data = snapshot.data ?? null;
+
+  // The selected beacon no longer exists — drop it and refresh the list.
+  useEffect(() => {
+    if (snapshot.isSuccess && snapshot.data === null && selectedId) {
+      setSelectedId(null);
+      listQuery.refetch();
+    }
+  }, [snapshot.isSuccess, snapshot.data, selectedId, listQuery]);
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 10_000);
