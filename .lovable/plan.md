@@ -8,7 +8,7 @@ The Android app requests enrolment. An admin approves it from an admin page, whi
 2. **The admin page** lists pending requests with their pairing word and when they arrived. The admin can approve (a beacon is created and its secret generated) or reject. Requests expire on their own after 24 hours.
 3. **The phone collects the secret.** It keeps asking with its enrolment code; once approved, the reply hands over the secret exactly once and the enrolment code stops working. The phone stores the secret privately and posts positions with it from then on.
 4. **The admin page** also manages existing beacons: rename, see battery / last seen / follower count, issue a new secret (the phone must re-enrol), and delete a beacon with its history.
-5. **Following a beacon** — any signed-in person pastes a secret on the tracker page and gives it their own label; the beacon joins their list. The tracker shows a switcher over followed beacons with map, battery, last seen and the live badge. "Stop following" affects only that person's list.
+5. **Asking to follow a beacon.** A signed-in person opens the tracker page and sees the list of registered beacons by name only — no positions, no secrets. They request access to one, optionally with a short note. The admin page shows those requests and approves or declines them. Once approved, the beacon appears in their list with map, battery, last seen and the live badge; a switcher moves between approved beacons. The admin can revoke access later, and a person can stop following at any time.
 
 ## Fresh start
 
