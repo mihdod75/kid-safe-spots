@@ -296,6 +296,15 @@ export type Database = {
         Args: { _beacon: string; _user: string }
         Returns: boolean
       }
+      list_beacon_names: {
+        Args: never
+        Returns: {
+          battery_level: number
+          id: string
+          last_seen_at: string
+          name: string
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "user"

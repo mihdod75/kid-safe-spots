@@ -30,8 +30,6 @@ export function failSafely(error: unknown, userMessage: string): never {
   throw new Error(userMessage);
 }
 
-const BEACON_COLUMNS = "id, name, battery_level, last_seen_at";
-
 export const listBeacons = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<BeaconSummary[]> => {
@@ -40,7 +38,7 @@ export const listBeacons = createServerFn({ method: "GET" })
     await supabase.from("profiles").upsert({ id: userId }, { onConflict: "id" });
 
     const [{ data: beacons, error }, { data: watchers }] = await Promise.all([
-      supabase.from("beacons").select(BEACON_COLUMNS).order("name"),
+      supabase.rpc("list_beacon_names"),
       supabase
         .from("beacon_watchers")
         .select("beacon_id, label, status")
@@ -88,11 +86,8 @@ export const getBeacon = createServerFn({ method: "POST" })
       throw new Error("You do not have access to this beacon.");
     }
 
-    const { data: beacon, error } = await supabase
-      .from("beacons")
-      .select(BEACON_COLUMNS)
-      .eq("id", data.beaconId)
-      .maybeSingle();
+    const { data: beaconRows, error } = await supabase.rpc("list_beacon_names");
+    const beacon = (beaconRows ?? []).find((b) => b.id === data.beaconId);
     if (error || !beacon) failSafely(error, "Could not load this beacon.");
 
     const { data: latest } = await supabase
