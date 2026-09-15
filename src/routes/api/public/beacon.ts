@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
 const bodySchema = z.object({
-  pairing_key: z.string().min(16).max(128),
+  pairing_key: z.string().min(32).max(128),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   accuracy_m: z.number().min(0).max(100000).optional(),
@@ -10,10 +10,12 @@ const bodySchema = z.object({
   recorded_at: z.string().optional(),
 });
 
-// How old a reading may be before we refuse it (replay protection).
+// How old a reading may be before we fall back to server time.
 const MAX_AGE_MS = 5 * 60 * 1000;
 // Tolerance for a beacon clock running slightly ahead of ours.
 const MAX_SKEW_MS = 2 * 60 * 1000;
+// Don't accept more than one position every couple of seconds per beacon.
+const MIN_INTERVAL_MS = 2000;
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -55,24 +57,28 @@ export const Route = createFileRoute("/api/public/beacon")({
         const withinWindow = sentValid && ageMs <= MAX_AGE_MS && ageMs >= -MAX_SKEW_MS;
         const clockAdjusted = !withinWindow;
         const recordedAt = withinWindow ? sent! : now;
-        if (clockAdjusted && parsed.recorded_at) {
-          console.warn(
-            `[beacon] clock adjusted: recorded_at="${parsed.recorded_at}" off by ${Math.round(ageMs / 1000)}s`,
-          );
-        }
 
-        const { data: device, error } = await supabaseAdmin
-          .from("devices")
+        const { data: beacon, error } = await supabaseAdmin
+          .from("beacons")
           .select("id, last_seen_at")
-          .eq("pairing_key", parsed.pairing_key)
+          .eq("secret_code", parsed.pairing_key)
           .maybeSingle();
 
-        if (error || !device) return json({ error: "Unknown pairing key" }, 401);
+        if (error || !beacon) return json({ error: "Unknown pairing key" }, 401);
+
+        const lastSeenMs = beacon.last_seen_at
+          ? new Date(beacon.last_seen_at).getTime()
+          : 0;
+
+        // Throttle: ignore bursts arriving faster than the allowed interval.
+        if (lastSeenMs && now.getTime() - lastSeenMs < MIN_INTERVAL_MS) {
+          return json({ ok: true, applied: false, note: "throttled" });
+        }
 
         const recordedAtIso = recordedAt.toISOString();
 
-        const insert = await supabaseAdmin.from("locations").insert({
-          device_id: device.id,
+        const insert = await supabaseAdmin.from("beacon_positions").insert({
+          beacon_id: beacon.id,
           latitude: parsed.latitude,
           longitude: parsed.longitude,
           accuracy_m: parsed.accuracy_m ?? null,
@@ -82,22 +88,19 @@ export const Route = createFileRoute("/api/public/beacon")({
         if (insert.error) return json({ error: "Could not store position" }, 500);
 
         // A newer reading already arrived: keep the history row, but don't move
-        // the device back to this older position.
-        const isOutdated =
-          device.last_seen_at !== null &&
-          new Date(device.last_seen_at).getTime() >= recordedAt.getTime();
+        // the beacon back to this older position.
+        const isOutdated = lastSeenMs >= recordedAt.getTime();
 
         if (!isOutdated) {
           await supabaseAdmin
-            .from("devices")
+            .from("beacons")
             .update({
               last_seen_at: recordedAtIso,
-              is_demo: false,
               ...(parsed.battery_level !== undefined
                 ? { battery_level: parsed.battery_level }
                 : {}),
             })
-            .eq("id", device.id);
+            .eq("id", beacon.id);
         }
 
         return json({

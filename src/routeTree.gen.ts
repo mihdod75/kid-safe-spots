@@ -12,8 +12,11 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedTrackerRouteImport } from './routes/_authenticated/tracker'
 import { Route as ApiPublicBeaconRouteImport } from './routes/api/public/beacon'
+import { Route as ApiPublicBeaconEnrollRouteImport } from './routes/api/public/beacon-enroll'
+import { Route as ApiPublicBeaconEnrollStatusRouteImport } from './routes/api/public/beacon-enroll-status'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -29,6 +32,11 @@ const AuthRoute = AuthRouteImport.update({
   path: '/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedTrackerRoute = AuthenticatedTrackerRouteImport.update({
   id: '/tracker',
   path: '/tracker',
@@ -39,39 +47,76 @@ const ApiPublicBeaconRoute = ApiPublicBeaconRouteImport.update({
   path: '/api/public/beacon',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicBeaconEnrollRoute = ApiPublicBeaconEnrollRouteImport.update({
+  id: '/api/public/beacon-enroll',
+  path: '/api/public/beacon-enroll',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiPublicBeaconEnrollStatusRoute =
+  ApiPublicBeaconEnrollStatusRouteImport.update({
+    id: '/api/public/beacon-enroll-status',
+    path: '/api/public/beacon-enroll-status',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/tracker': typeof AuthenticatedTrackerRoute
   '/api/public/beacon': typeof ApiPublicBeaconRoute
+  '/api/public/beacon-enroll': typeof ApiPublicBeaconEnrollRoute
+  '/api/public/beacon-enroll-status': typeof ApiPublicBeaconEnrollStatusRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/admin': typeof AuthenticatedAdminRoute
   '/tracker': typeof AuthenticatedTrackerRoute
   '/api/public/beacon': typeof ApiPublicBeaconRoute
+  '/api/public/beacon-enroll': typeof ApiPublicBeaconEnrollRoute
+  '/api/public/beacon-enroll-status': typeof ApiPublicBeaconEnrollStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/tracker': typeof AuthenticatedTrackerRoute
   '/api/public/beacon': typeof ApiPublicBeaconRoute
+  '/api/public/beacon-enroll': typeof ApiPublicBeaconEnrollRoute
+  '/api/public/beacon-enroll-status': typeof ApiPublicBeaconEnrollStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/auth' | '/tracker' | '/api/public/beacon'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/tracker'
+    | '/api/public/beacon'
+    | '/api/public/beacon-enroll'
+    | '/api/public/beacon-enroll-status'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/tracker' | '/api/public/beacon'
+  to:
+    | '/'
+    | '/auth'
+    | '/admin'
+    | '/tracker'
+    | '/api/public/beacon'
+    | '/api/public/beacon-enroll'
+    | '/api/public/beacon-enroll-status'
   id:
     | '__root__'
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/_authenticated/admin'
     | '/_authenticated/tracker'
     | '/api/public/beacon'
+    | '/api/public/beacon-enroll'
+    | '/api/public/beacon-enroll-status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -79,6 +124,8 @@ export interface RootRouteChildren {
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
   ApiPublicBeaconRoute: typeof ApiPublicBeaconRoute
+  ApiPublicBeaconEnrollRoute: typeof ApiPublicBeaconEnrollRoute
+  ApiPublicBeaconEnrollStatusRoute: typeof ApiPublicBeaconEnrollStatusRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -104,6 +151,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/tracker': {
       id: '/_authenticated/tracker'
       path: '/tracker'
@@ -118,14 +172,30 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicBeaconRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/beacon-enroll': {
+      id: '/api/public/beacon-enroll'
+      path: '/api/public/beacon-enroll'
+      fullPath: '/api/public/beacon-enroll'
+      preLoaderRoute: typeof ApiPublicBeaconEnrollRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/public/beacon-enroll-status': {
+      id: '/api/public/beacon-enroll-status'
+      path: '/api/public/beacon-enroll-status'
+      fullPath: '/api/public/beacon-enroll-status'
+      preLoaderRoute: typeof ApiPublicBeaconEnrollStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedTrackerRoute: typeof AuthenticatedTrackerRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedTrackerRoute: AuthenticatedTrackerRoute,
 }
 
@@ -137,6 +207,8 @@ const rootRouteChildren: RootRouteChildren = {
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
   ApiPublicBeaconRoute: ApiPublicBeaconRoute,
+  ApiPublicBeaconEnrollRoute: ApiPublicBeaconEnrollRoute,
+  ApiPublicBeaconEnrollStatusRoute: ApiPublicBeaconEnrollStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

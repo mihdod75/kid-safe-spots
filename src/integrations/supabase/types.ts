@@ -14,6 +14,162 @@ export type Database = {
   }
   public: {
     Tables: {
+      beacon_enrollments: {
+        Row: {
+          beacon_id: string | null
+          claimed_at: string | null
+          device_label: string
+          enrollment_code_hash: string
+          expires_at: string
+          id: string
+          pairing_word: string
+          requested_at: string
+          status: string
+        }
+        Insert: {
+          beacon_id?: string | null
+          claimed_at?: string | null
+          device_label?: string
+          enrollment_code_hash: string
+          expires_at?: string
+          id?: string
+          pairing_word: string
+          requested_at?: string
+          status?: string
+        }
+        Update: {
+          beacon_id?: string | null
+          claimed_at?: string | null
+          device_label?: string
+          enrollment_code_hash?: string
+          expires_at?: string
+          id?: string
+          pairing_word?: string
+          requested_at?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beacon_enrollments_beacon_id_fkey"
+            columns: ["beacon_id"]
+            isOneToOne: false
+            referencedRelation: "beacons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      beacon_positions: {
+        Row: {
+          accuracy_m: number | null
+          battery_level: number | null
+          beacon_id: string
+          id: string
+          latitude: number
+          longitude: number
+          recorded_at: string
+        }
+        Insert: {
+          accuracy_m?: number | null
+          battery_level?: number | null
+          beacon_id: string
+          id?: string
+          latitude: number
+          longitude: number
+          recorded_at?: string
+        }
+        Update: {
+          accuracy_m?: number | null
+          battery_level?: number | null
+          beacon_id?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          recorded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beacon_positions_beacon_id_fkey"
+            columns: ["beacon_id"]
+            isOneToOne: false
+            referencedRelation: "beacons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      beacon_watchers: {
+        Row: {
+          beacon_id: string
+          decided_at: string | null
+          decided_by: string | null
+          id: string
+          label: string | null
+          note: string | null
+          requested_at: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          beacon_id: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          label?: string | null
+          note?: string | null
+          requested_at?: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          beacon_id?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          id?: string
+          label?: string | null
+          note?: string | null
+          requested_at?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "beacon_watchers_beacon_id_fkey"
+            columns: ["beacon_id"]
+            isOneToOne: false
+            referencedRelation: "beacons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      beacons: {
+        Row: {
+          approved_by: string | null
+          battery_level: number | null
+          created_at: string
+          id: string
+          last_seen_at: string | null
+          name: string
+          secret_code: string
+        }
+        Insert: {
+          approved_by?: string | null
+          battery_level?: number | null
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          name?: string
+          secret_code: string
+        }
+        Update: {
+          approved_by?: string | null
+          battery_level?: number | null
+          created_at?: string
+          id?: string
+          last_seen_at?: string | null
+          name?: string
+          secret_code?: string
+        }
+        Relationships: []
+      }
       devices: {
         Row: {
           battery_level: number | null
@@ -103,15 +259,46 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      is_watching: {
+        Args: { _beacon: string; _user: string }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "admin" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -238,6 +425,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["admin", "user"],
+    },
   },
 } as const
