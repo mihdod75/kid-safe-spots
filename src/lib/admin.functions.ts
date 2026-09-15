@@ -54,6 +54,34 @@ function randomSecret() {
   return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
 }
 
+export const pendingAdminCounts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<{ enrollments: number; accessRequests: number }> => {
+    let admin;
+    try {
+      admin = await adminClient(context);
+    } catch {
+      return { enrollments: 0, accessRequests: 0 };
+    }
+
+    const [enroll, watchers] = await Promise.all([
+      admin
+        .from("beacon_enrollments")
+        .select("id", { head: true, count: "exact" })
+        .eq("status", "pending")
+        .gt("expires_at", new Date().toISOString()),
+      admin
+        .from("beacon_watchers")
+        .select("id", { head: true, count: "exact" })
+        .eq("status", "pending"),
+    ]);
+
+    return {
+      enrollments: enroll.count ?? 0,
+      accessRequests: watchers.count ?? 0,
+    };
+  });
+
 export const listEnrollments = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<EnrollmentRow[]> => {
