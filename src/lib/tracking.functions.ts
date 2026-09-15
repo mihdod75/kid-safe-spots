@@ -38,13 +38,17 @@ export const listBeacons = createServerFn({ method: "GET" })
     await supabase.from("profiles").upsert({ id: userId }, { onConflict: "id" });
 
     const [{ data: beacons, error }, { data: watchers }] = await Promise.all([
-      supabase.rpc("list_beacon_names"),
+      supabase
+        .from("beacons")
+        .select("id, name, battery_level, last_seen_at")
+        .order("name"),
       supabase
         .from("beacon_watchers")
         .select("beacon_id, label, status")
         .eq("user_id", userId),
     ]);
     if (error) failSafely(error, "Could not load the beacon list.");
+
 
     const byBeacon = new Map(
       (watchers ?? []).map((w) => [w.beacon_id, w] as const),

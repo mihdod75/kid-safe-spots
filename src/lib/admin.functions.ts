@@ -36,11 +36,14 @@ function fail(error: unknown, message: string): never {
 }
 
 async function adminClient(context: { supabase: any; userId: string }) {
-  const { data: isAdmin } = await context.supabase.rpc("has_role", {
-    _user_id: context.userId,
-    _role: "admin",
-  });
-  if (isAdmin !== true) throw new Error("Forbidden");
+  const { data: roleRow } = await context.supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", context.userId)
+    .eq("role", "admin")
+    .maybeSingle();
+  if (!roleRow) throw new Error("Forbidden");
+
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   return supabaseAdmin;
 }
