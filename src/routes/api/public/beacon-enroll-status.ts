@@ -1,9 +1,24 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-const bodySchema = z.object({
-  enrollment_code: z.string().min(32).max(128),
-});
+const bodySchema = z
+  .object({
+    enrollment_code: z.string().min(32).max(128).optional(),
+    enrollmentCode: z.string().min(32).max(128).optional(),
+    EnrollmentCode: z.string().min(32).max(128).optional(),
+  })
+  .transform((value, context) => {
+    const enrollmentCode =
+      value.enrollment_code ?? value.enrollmentCode ?? value.EnrollmentCode;
+    if (!enrollmentCode) {
+      context.addIssue({
+        code: "custom",
+        path: ["enrollment_code"],
+        message: "Required",
+      });
+    }
+    return { enrollmentCode };
+  });
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), {
@@ -31,10 +46,28 @@ export const Route = createFileRoute("/api/public/beacon-enroll-status")({
         }
 
         const result = bodySchema.safeParse(body);
-        if (!result.success) return json({ error: "Invalid payload" }, 400);
+        if (!result.success) {
+          const issues = result.error.issues.map((issue) => ({
+            field: issue.path.join(".") || "(body)",
+            message: issue.message,
+          }));
+          const receivedFields =
+            body && typeof body === "object" && !Array.isArray(body)
+              ? Object.keys(body)
+              : [];
+          console.warn(
+            "[beacon-enroll-status] 400 invalid payload",
+            JSON.stringify({ issues, receivedFields }),
+          );
+          return json({ error: "Invalid payload", issues }, 400);
+        }
+
+        if (!result.data.enrollmentCode) {
+          return json({ error: "Invalid payload" }, 400);
+        }
 
         const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const hash = await sha256Hex(result.data.enrollment_code);
+        const hash = await sha256Hex(result.data.enrollmentCode);
 
         const { data: enrollment } = await supabaseAdmin
           .from("beacon_enrollments")
