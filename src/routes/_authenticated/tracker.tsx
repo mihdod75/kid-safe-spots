@@ -300,7 +300,7 @@ function TrackerPage() {
               text={
                 listQuery.isPending
                   ? "Loading…"
-                  : approved.length === 0
+                  : selectable.length === 0
                     ? "Pick a beacon below and ask an admin for access."
                     : "Waiting for the first signal from this beacon."
               }
@@ -320,9 +320,9 @@ function TrackerPage() {
         </section>
 
         <aside className="w-full space-y-4 lg:max-w-sm">
-          {approved.length > 1 && (
+          {selectable.length > 1 && (
             <div className="flex flex-wrap gap-2">
-              {approved.map((b) => (
+              {selectable.map((b) => (
                 <Button
                   key={b.id}
                   size="sm"
