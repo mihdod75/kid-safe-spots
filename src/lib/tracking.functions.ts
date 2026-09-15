@@ -62,6 +62,7 @@ export const listBeacons = createServerFn({ method: "GET" })
         name: b.name,
         label: watcher?.label ?? null,
         status: (watcher?.status as BeaconSummary["status"]) ?? "none",
+        watcherId: watcher?.id ?? null,
       };
     });
   });
