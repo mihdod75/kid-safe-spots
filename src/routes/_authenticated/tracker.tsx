@@ -125,12 +125,29 @@ function TrackerPage() {
   const approved = useMemo(() => beacons.filter((b) => b.status === "approved"), [beacons]);
   const others = useMemo(() => beacons.filter((b) => b.status !== "approved"), [beacons]);
 
+  // Beacons already reported as removed — never auto-select them again.
+  const goneRef = useRef<Set<string>>(new Set());
+
+  const selectable = useMemo(
+    () => approved.filter((b) => !goneRef.current.has(b.id)),
+    [approved],
+  );
+
+  // A beacon id that is no longer in the list can be forgotten.
   useEffect(() => {
-    if (!selectedId && approved[0]) setSelectedId(approved[0].id);
-    if (selectedId && !approved.some((b) => b.id === selectedId)) {
-      setSelectedId(approved[0]?.id ?? null);
+    if (!listQuery.isSuccess) return;
+    const ids = new Set(beacons.map((b) => b.id));
+    for (const id of Array.from(goneRef.current)) {
+      if (!ids.has(id)) goneRef.current.delete(id);
     }
-  }, [approved, selectedId]);
+  }, [beacons, listQuery.isSuccess]);
+
+  useEffect(() => {
+    if (!selectedId && selectable[0]) setSelectedId(selectable[0].id);
+    if (selectedId && !selectable.some((b) => b.id === selectedId)) {
+      setSelectedId(selectable[0]?.id ?? null);
+    }
+  }, [selectable, selectedId]);
 
   const snapshot = useQuery({
     queryKey: ["beacon", selectedId],
@@ -149,14 +166,15 @@ function TrackerPage() {
       snapshot.error instanceof Error && /do not have access/i.test(snapshot.error.message);
     const gone = (snapshot.isSuccess && snapshot.data === null) || lostAccess;
 
-    if (gone && selectedId) {
+    if (gone && selectedId && !goneRef.current.has(selectedId)) {
+      goneRef.current.add(selectedId);
       queryClient.removeQueries({ queryKey: ["beacon", selectedId] });
       setSelectedId(null);
       setLive(false);
-      listQuery.refetch();
+      queryClient.invalidateQueries({ queryKey: ["beacons"] });
       toast.info("This beacon was removed");
     }
-  }, [snapshot.isSuccess, snapshot.isError, snapshot.data, selectedId, listQuery, queryClient]);
+  }, [snapshot.isSuccess, snapshot.isError, snapshot.data, snapshot.error, selectedId, queryClient]);
 
 
   useEffect(() => {
@@ -282,7 +300,7 @@ function TrackerPage() {
               text={
                 listQuery.isPending
                   ? "Loading…"
-                  : approved.length === 0
+                  : selectable.length === 0
                     ? "Pick a beacon below and ask an admin for access."
                     : "Waiting for the first signal from this beacon."
               }
@@ -302,9 +320,9 @@ function TrackerPage() {
         </section>
 
         <aside className="w-full space-y-4 lg:max-w-sm">
-          {approved.length > 1 && (
+          {selectable.length > 1 && (
             <div className="flex flex-wrap gap-2">
-              {approved.map((b) => (
+              {selectable.map((b) => (
                 <Button
                   key={b.id}
                   size="sm"
