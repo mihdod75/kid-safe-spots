@@ -18,9 +18,11 @@ The current beacon and its stored positions are left behind. Your account become
 
 - Nothing is created without an admin approval, so the flooding concern is gone. Join requests themselves are rate-limited per address and capped, and carry no location data.
 - The pairing word shown on the phone lets the admin confirm they are approving the right device, not an impostor request that arrived at the same moment.
-- The secret (64 random characters) is handed out once, over HTTPS, and after that only ever shown on the admin page behind a "show" toggle. It is never included in ordinary tracker reads.
+- The secret (64 random characters) is handed out once, over HTTPS, and after that only ever shown on the admin page behind a "show" toggle. It never reaches the tracker page at all — following no longer depends on knowing it.
 - A leaked or lost secret is revoked by issuing a new one; the phone re-enrols.
-- Positions are readable only by followers of that beacon or an admin, enforced in the database. Admin status lives in its own roles table and is checked server-side.
+- Viewing is granted person by person by an admin, and can be revoked. The beacon list everyone can see carries names only, never positions.
+- Positions are readable only by approved followers of that beacon or an admin, enforced in the database. Admin status lives in its own roles table and is checked server-side.
+
 
 ## Technical notes
 
