@@ -55,11 +55,13 @@ export const listBeacons = createServerFn({ method: "GET" })
       (watchers ?? []).map((w) => [w.beacon_id, w] as const),
     );
 
-    return (beacons ?? []).map((b) => {
+    return (beacons ?? [])
+      .filter((b): b is typeof b & { id: string } => Boolean(b.id))
+      .map((b) => {
       const watcher = byBeacon.get(b.id);
       return {
         id: b.id,
-        name: b.name,
+        name: b.name ?? "Beacon",
         label: watcher?.label ?? null,
         status: (watcher?.status as BeaconSummary["status"]) ?? "none",
         watcherId: watcher?.id ?? null,
