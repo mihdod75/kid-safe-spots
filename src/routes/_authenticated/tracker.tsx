@@ -13,7 +13,7 @@ import {
   relabelBeacon,
   amIAdmin,
 } from "@/lib/tracking.functions";
-import { decideAccessRequest } from "@/lib/admin.functions";
+import { decideAccessRequest, pendingAdminCounts } from "@/lib/admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,6 +75,7 @@ function TrackerPage() {
   const rename = useServerFn(relabelBeacon);
   const checkAdmin = useServerFn(amIAdmin);
   const decide = useServerFn(decideAccessRequest);
+  const fetchPendingCounts = useServerFn(pendingAdminCounts);
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -114,6 +115,18 @@ function TrackerPage() {
     queryFn: () => withRefresh(() => checkAdmin()),
     retry: false,
   });
+
+  const pendingQuery = useQuery({
+    queryKey: ["admin-pending"],
+    enabled: !!adminQuery.data?.isAdmin,
+    queryFn: () => withRefresh(() => fetchPendingCounts()),
+    retry: false,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const pendingTotal =
+    (pendingQuery.data?.enrollments ?? 0) + (pendingQuery.data?.accessRequests ?? 0);
 
   useEffect(() => {
     if (listQuery.error instanceof Error && /unauthor/i.test(listQuery.error.message)) {
@@ -272,8 +285,18 @@ function TrackerPage() {
         </div>
         <div className="flex items-center gap-1">
           {adminQuery.data?.isAdmin && (
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/admin">Admin</Link>
+            <Button variant="ghost" size="sm" asChild className="relative">
+              <Link to="/admin">
+                Admin
+                {pendingTotal > 0 && (
+                  <span
+                    className="absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground"
+                    aria-label={`${pendingTotal} ${pendingTotal === 1 ? "request" : "requests"} waiting`}
+                  >
+                    {pendingTotal > 9 ? "9+" : pendingTotal}
+                  </span>
+                )}
+              </Link>
             </Button>
           )}
           <Button variant="ghost" size="sm" onClick={handleSignOut}>
