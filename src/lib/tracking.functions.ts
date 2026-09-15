@@ -81,20 +81,27 @@ export const getBeacon = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
 
-    const { data: isAdmin } = await supabase.rpc("has_role", {
-      _user_id: userId,
-      _role: "admin",
-    });
+    const { data: roleRow } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    const isAdmin = Boolean(roleRow);
 
     if (watcher?.status !== "approved" && !isAdmin) {
       throw new Error("You do not have access to this beacon.");
     }
 
-    const { data: beaconRows, error } = await supabase.rpc("list_beacon_names");
+    const { data: beacon, error } = await supabase
+      .from("beacons")
+      .select("id, name, battery_level, last_seen_at")
+      .eq("id", data.beaconId)
+      .maybeSingle();
     if (error) failSafely(error, "Could not load this beacon.");
-    const beacon = (beaconRows ?? []).find((b) => b.id === data.beaconId);
     // The beacon was removed (or is no longer visible) — let the page recover.
     if (!beacon) return null;
+
 
     const { data: latest } = await supabase
       .from("beacon_positions")
