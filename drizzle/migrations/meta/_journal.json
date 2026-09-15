@@ -71,6 +71,13 @@
       "when": 1789455409958,
       "tag": "0009_private_role_helpers_and_watcher_status_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1789455466145,
+      "tag": "0010_watchers_no_direct_updates",
+      "breakpoints": true
     }
   ]
 }
