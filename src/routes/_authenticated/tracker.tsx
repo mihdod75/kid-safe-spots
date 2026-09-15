@@ -74,6 +74,7 @@ function TrackerPage() {
   const unfollow = useServerFn(stopFollowing);
   const rename = useServerFn(relabelBeacon);
   const checkAdmin = useServerFn(amIAdmin);
+  const decide = useServerFn(decideAccessRequest);
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
