@@ -67,7 +67,7 @@ export const getBeacon = createServerFn({ method: "POST" })
     if (!data?.beaconId) throw new Error("Missing beacon.");
     return { beaconId: data.beaconId };
   })
-  .handler(async ({ data, context }): Promise<BeaconSnapshot> => {
+  .handler(async ({ data, context }): Promise<BeaconSnapshot | null> => {
     const { supabase, userId } = context;
 
     const { data: watcher } = await supabase
