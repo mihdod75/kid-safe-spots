@@ -95,11 +95,39 @@ export const Route = createFileRoute("/api/public/beacon-enroll")({
 
         const { data: existing } = await supabaseAdmin
           .from("beacon_enrollments")
-          .select("id, status")
+          .select("id, status, expires_at")
           .eq("enrollment_code_hash", hash)
           .maybeSingle();
 
-        if (existing) return json({ status: existing.status });
+        if (existing) {
+          const stale =
+            existing.status === "rejected" ||
+            (existing.status === "pending" &&
+              new Date(existing.expires_at).getTime() < Date.now());
+
+          // A previously rejected or expired request should not haunt the phone
+          // forever: reopen it as a fresh pending request.
+          if (stale) {
+            const now = new Date();
+            const { error: reopenError } = await supabaseAdmin
+              .from("beacon_enrollments")
+              .update({
+                status: "pending",
+                pairing_word: parsed.pairingWord.toUpperCase(),
+                device_label: parsed.deviceLabel ?? "Android phone",
+                requested_at: now.toISOString(),
+                expires_at: new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString(),
+                beacon_id: null,
+                claimed_at: null,
+              })
+              .eq("id", existing.id);
+            if (reopenError) return json({ error: "Could not register the request" }, 500);
+            return json({ status: "pending" });
+          }
+
+          return json({ status: existing.status });
+        }
+
 
         // Keep the queue small so nobody can flood it with join requests.
         const { count } = await supabaseAdmin
