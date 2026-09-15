@@ -53,6 +53,13 @@ export type Database = {
             foreignKeyName: "beacon_enrollments_beacon_id_fkey"
             columns: ["beacon_id"]
             isOneToOne: false
+            referencedRelation: "beacon_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "beacon_enrollments_beacon_id_fkey"
+            columns: ["beacon_id"]
+            isOneToOne: false
             referencedRelation: "beacons"
             referencedColumns: ["id"]
           },
@@ -87,6 +94,13 @@ export type Database = {
           recorded_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "beacon_positions_beacon_id_fkey"
+            columns: ["beacon_id"]
+            isOneToOne: false
+            referencedRelation: "beacon_directory"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "beacon_positions_beacon_id_fkey"
             columns: ["beacon_id"]
@@ -131,6 +145,13 @@ export type Database = {
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "beacon_watchers_beacon_id_fkey"
+            columns: ["beacon_id"]
+            isOneToOne: false
+            referencedRelation: "beacon_directory"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "beacon_watchers_beacon_id_fkey"
             columns: ["beacon_id"]
@@ -282,7 +303,27 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      beacon_directory: {
+        Row: {
+          battery_level: number | null
+          id: string | null
+          last_seen_at: string | null
+          name: string | null
+        }
+        Insert: {
+          battery_level?: number | null
+          id?: string | null
+          last_seen_at?: string | null
+          name?: string | null
+        }
+        Update: {
+          battery_level?: number | null
+          id?: string | null
+          last_seen_at?: string | null
+          name?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
