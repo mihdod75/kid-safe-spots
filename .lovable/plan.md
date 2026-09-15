@@ -1,28 +1,26 @@
-# Beacons unlocked by their own secret code
+# Beacons identified by a secret the phone generates
 
-Change the model from "one child per account" to "beacons that anyone signed in can follow if they know the beacon's secret code".
+Change the model from "one child per account" to "the Android app creates a secret, and this page shows every beacon whose secret you know".
 
 ## How it will work
 
-1. **A beacon is created** from the app. It gets a name (the child's name) and its own long secret code. The person who creates it starts following it automatically.
-2. **The phone app** sends positions using that same secret code — nothing else changes in the sending format.
-3. **Anyone else** (a second parent, a grandparent) signs in, pastes the secret code, and that beacon is added to their list. No code, no access.
-4. **The watch list** — the tracker page shows all beacons a person follows, with a switcher; picking one shows its map, battery and last-seen. Someone can also stop following a beacon, which just removes it from their list.
-5. **Rotating the code** still works: a new code is issued, the phone app must be updated, and existing followers keep their access (they were already added).
-
-The same code both sends positions and grants viewing, as chosen.
+1. **The phone generates a secret** with its "Generate secret" button and starts posting positions with it. The first position creates the beacon automatically — nothing needs to be set up here first.
+2. **On this page** a signed-in person pastes a secret and gives it a label (e.g. "Ana"). That beacon is added to their list.
+3. **The list** shows every beacon they've added: name, battery, last seen, and a switcher; picking one shows it on the map. Several people can follow the same beacon — each just needs the secret.
+4. **Removing** a beacon from the list only stops following it; the phone keeps sending.
+5. **No demo child** is created any more. A beacon added before its first position shows "waiting for the first signal".
 
 ## Fresh start
 
-The current beacon and its stored positions are left behind; the page starts with an empty list and a "Create a beacon" / "Add with a code" choice. No demo child is auto-created any more — a new beacon simply waits for its first signal.
+The current beacon and its stored positions are left behind; the page starts with an empty list and an "Add a beacon" box asking for the secret and a name.
 
 ## Technical notes
 
-- New tables (the existing `devices`/`locations` stay in place, unused, since columns can't be dropped safely):
-  - `beacons` — `id`, `name`, `secret_code` (unique, 48 random bytes hex, default generated), `battery_level`, `last_seen_at`, `created_by`, `created_at`.
-  - `beacon_watchers` — `beacon_id`, `user_id`, `created_at`, unique pair.
+- New tables (existing `devices`/`locations` stay in place, unused, since columns can't be dropped safely):
+  - `beacons` — `id`, `secret_code` (unique, phone-supplied, 32–128 chars), `battery_level`, `last_seen_at`, `first_seen_at`, `created_at`.
+  - `beacon_watchers` — `beacon_id`, `user_id`, `label`, `created_at`, unique pair. The name lives here, so each follower can label it their own way.
   - `beacon_positions` — `beacon_id`, `latitude`, `longitude`, `accuracy_m`, `battery_level`, `recorded_at`.
-- RLS: a `SECURITY DEFINER` helper `public.is_watching(_beacon uuid, _user uuid)` avoids recursive policy checks. Watchers may SELECT their beacons and positions; only a watcher may update the beacon name or rotate its code; `beacon_watchers` rows are readable/insertable/deletable by the row's own `user_id`. Grants to `authenticated` + `service_role` in the same migration; no `anon` access. `beacon_positions` added to the realtime publication with `REPLICA IDENTITY FULL` so the live badge keeps working.
-- Server functions in `src/lib/tracking.functions.ts` (all behind `requireSupabaseAuth`): `listBeacons`, `getBeacon({beaconId})`, `createBeacon({name})` (insert + self-watch via admin client), `followBeacon({secretCode})` (admin-client lookup by code, then insert watcher row for `context.userId`), `unfollowBeacon`, `renameBeacon`, `rotateSecret`. Old `getTracker` demo-seeding logic is removed.
-- `src/routes/api/public/beacon.ts` keeps the same JSON contract but resolves `pairing_key` against `beacons.secret_code` and writes to `beacon_positions`; timestamp tolerance, out-of-order guard and 401 behaviour unchanged.
-- `src/routes/_authenticated/tracker.tsx`: beacon switcher plus empty state with the two actions; realtime channel keyed on the selected beacon id; secret shown hidden-by-default with Show/Copy/Rotate, as today.
+- RLS: `SECURITY DEFINER` helper `public.is_watching(_beacon uuid, _user uuid)` avoids recursive policy checks. Watchers may SELECT their beacons and positions; `beacon_watchers` rows are readable/insertable/updatable/deletable by the row's own `user_id`. Inserts into `beacons`/`beacon_positions` happen only through the admin client in the ingest route. Grants to `authenticated` + `service_role`; no `anon`. `beacon_positions` gets `REPLICA IDENTITY FULL` and joins the realtime publication so the live badge keeps working.
+- `src/routes/api/public/beacon.ts`: same JSON contract, `pairing_key` now treated as the phone's secret. Looks up `beacons.secret_code`; if absent, creates the beacon row (upsert on the secret), then inserts the position and updates battery/last seen. Secret must be at least 32 characters so a guessed value can't claim a beacon. Timestamp tolerance, out-of-order guard and error shapes unchanged.
+- Server functions in `src/lib/tracking.functions.ts`, all behind `requireSupabaseAuth`: `listBeacons`, `getBeacon({beaconId})`, `addBeacon({secretCode, label})` (admin-client lookup or create-on-first-add, then insert a watcher row for `context.userId`), `removeBeacon`, `renameBeacon` (updates the watcher's label). The old `getTracker` demo-seeding logic is removed.
+- `src/routes/_authenticated/tracker.tsx`: beacon switcher plus empty state with the add-a-secret form; realtime channel keyed on the selected beacon id; the secret is not displayed on the page any more (the phone holds it), so the show/copy/rotate controls go away.
