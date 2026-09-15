@@ -179,18 +179,22 @@ function AdminPage() {
                       />
                       <Button
                         size="sm"
-                        onClick={() =>
+                        disabled={!(names[e.id] ?? "").trim()}
+                        onClick={() => {
+                          const name = (names[e.id] ?? "").trim();
+                          if (!name) {
+                            toast.error("Please name this beacon first.");
+                            return;
+                          }
                           run(
-                            () =>
-                              approve({
-                                data: { enrollmentId: e.id, name: names[e.id] ?? "" },
-                              }),
+                            () => approve({ data: { enrollmentId: e.id, name } }),
                             "Beacon approved",
-                          )
-                        }
+                          );
+                        }}
                       >
                         Approve
                       </Button>
+
                       <Button
                         size="sm"
                         variant="ghost"
