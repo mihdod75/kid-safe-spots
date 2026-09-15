@@ -85,6 +85,13 @@
       "when": 1789456123766,
       "tag": "0011_fix_watcher_status_guard_role_check",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1789456245346,
+      "tag": "0012_lock_down_beacon_secrets_and_enrollments",
+      "breakpoints": true
     }
   ]
 }
