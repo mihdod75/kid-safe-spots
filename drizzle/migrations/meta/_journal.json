@@ -92,6 +92,13 @@
       "when": 1789456245346,
       "tag": "0012_lock_down_beacon_secrets_and_enrollments",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1789457033837,
+      "tag": "0013_beacon_directory_view",
+      "breakpoints": true
     }
   ]
 }
