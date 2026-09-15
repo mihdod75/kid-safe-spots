@@ -38,13 +38,17 @@ export const listBeacons = createServerFn({ method: "GET" })
     await supabase.from("profiles").upsert({ id: userId }, { onConflict: "id" });
 
     const [{ data: beacons, error }, { data: watchers }] = await Promise.all([
-      supabase.rpc("list_beacon_names"),
+      supabase
+        .from("beacons")
+        .select("id, name, battery_level, last_seen_at")
+        .order("name"),
       supabase
         .from("beacon_watchers")
         .select("beacon_id, label, status")
         .eq("user_id", userId),
     ]);
     if (error) failSafely(error, "Could not load the beacon list.");
+
 
     const byBeacon = new Map(
       (watchers ?? []).map((w) => [w.beacon_id, w] as const),
@@ -77,20 +81,27 @@ export const getBeacon = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
 
-    const { data: isAdmin } = await supabase.rpc("has_role", {
-      _user_id: userId,
-      _role: "admin",
-    });
+    const { data: roleRow } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    const isAdmin = Boolean(roleRow);
 
     if (watcher?.status !== "approved" && !isAdmin) {
       throw new Error("You do not have access to this beacon.");
     }
 
-    const { data: beaconRows, error } = await supabase.rpc("list_beacon_names");
+    const { data: beacon, error } = await supabase
+      .from("beacons")
+      .select("id, name, battery_level, last_seen_at")
+      .eq("id", data.beaconId)
+      .maybeSingle();
     if (error) failSafely(error, "Could not load this beacon.");
-    const beacon = (beaconRows ?? []).find((b) => b.id === data.beaconId);
     // The beacon was removed (or is no longer visible) — let the page recover.
     if (!beacon) return null;
+
 
     const { data: latest } = await supabase
       .from("beacon_positions")
@@ -162,7 +173,10 @@ export const relabelBeacon = createServerFn({ method: "POST" })
     return { beaconId: data.beaconId, label };
   })
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    // Followers have no update rights of their own in the database; the server
+    // makes the change, and only ever on this person's own row (label only).
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("beacon_watchers")
       .update({ label: data.label })
       .eq("beacon_id", data.beaconId)
@@ -171,12 +185,16 @@ export const relabelBeacon = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+
 export const amIAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { data } = await context.supabase.rpc("has_role", {
-      _user_id: context.userId,
-      _role: "admin",
-    });
-    return { isAdmin: data === true };
+    const { data } = await context.supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", context.userId)
+      .eq("role", "admin")
+      .maybeSingle();
+    return { isAdmin: Boolean(data) };
+
   });

@@ -285,26 +285,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      has_role: {
-        Args: {
-          _role: Database["public"]["Enums"]["app_role"]
-          _user_id: string
-        }
-        Returns: boolean
-      }
-      is_watching: {
-        Args: { _beacon: string; _user: string }
-        Returns: boolean
-      }
-      list_beacon_names: {
-        Args: never
-        Returns: {
-          battery_level: number
-          id: string
-          last_seen_at: string
-          name: string
-        }[]
-      }
+      [_ in never]: never
     }
     Enums: {
       app_role: "admin" | "user"
