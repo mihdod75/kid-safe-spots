@@ -99,6 +99,13 @@
       "when": 1789457033837,
       "tag": "0013_beacon_directory_view",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1789457330317,
+      "tag": "0014_drop_beacon_directory_view",
+      "breakpoints": true
     }
   ]
 }
