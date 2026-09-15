@@ -29,6 +29,13 @@
       "when": 1789451075338,
       "tag": "0003_beacon_enrollment_model",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789451113249,
+      "tag": "0004_beacons_column_grants",
+      "breakpoints": true
     }
   ]
 }
