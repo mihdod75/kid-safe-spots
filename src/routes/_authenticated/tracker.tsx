@@ -154,6 +154,7 @@ function TrackerPage() {
       setSelectedId(null);
       setLive(false);
       listQuery.refetch();
+      toast.info("This beacon was removed");
     }
   }, [snapshot.isSuccess, snapshot.isError, snapshot.data, selectedId, listQuery, queryClient]);
 

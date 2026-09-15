@@ -329,7 +329,14 @@ function AdminPage() {
                         size="sm"
                         variant="ghost"
                         onClick={() => {
-                          if (!window.confirm("Delete this beacon and all its history?")) return;
+                          if (
+                            !window.confirm(
+                              `Delete "${b.name}" and all its history? ${b.followers} ${
+                                b.followers === 1 ? "person" : "people"
+                              } following it will lose access immediately.`,
+                            )
+                          )
+                            return;
                           run(() => remove({ data: { beaconId: b.id } }), "Beacon deleted");
                         }}
                       >

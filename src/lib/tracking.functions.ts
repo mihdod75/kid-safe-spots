@@ -87,17 +87,11 @@ export const getBeacon = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
 
-    const { data: roleRow } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", userId)
-      .eq("role", "admin")
-      .maybeSingle();
-    const isAdmin = Boolean(roleRow);
-
-    if (watcher?.status !== "approved" && !isAdmin) {
+    // Everyone, admins included, must be an approved follower to see a position.
+    if (watcher?.status !== "approved") {
       throw new Error("You do not have access to this beacon.");
     }
+
 
     const { data: beacon, error } = await supabase
       .from("beacons")
