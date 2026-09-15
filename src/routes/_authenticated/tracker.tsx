@@ -200,6 +200,17 @@ function TrackerPage() {
     }
   }
 
+  async function handleDecide(watcherId: string, approve: boolean, beaconId: string) {
+    try {
+      await decide({ data: { watcherId, approve } });
+      await listQuery.refetch();
+      if (approve) setSelectedId(beaconId);
+      toast.success(approve ? "Access approved" : "Request declined");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not update the request");
+    }
+  }
+
   async function handleStop(beaconId: string) {
     if (!window.confirm("Stop following this beacon?")) return;
     try {
