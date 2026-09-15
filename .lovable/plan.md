@@ -14,12 +14,15 @@ The follow records for a deleted beacon are already removed automatically by the
 - The list refreshes on its own, so a deleted beacon drops off without a manual page reload.
 - The admin page confirms deletion with a warning that all followers lose access, and says how many followers are affected.
 
-## Open question (not blocking)
+## Admins follow the same rule
 
-Whether an admin should also need to be an approved follower to view a beacon. Left as is for now — admins keep full visibility. Say the word and I will change it.
+Administrators will no longer see a beacon's position just because they are administrators. To view a beacon, an admin must be an approved follower like anyone else — and since they can approve their own request in one tap on the tracker page, it stays a two-click flow. Admin duties (creating, renaming, re-keying, deleting beacons, approving phones and access requests) are unchanged.
 
 ## Technical notes
 
-- `src/routes/_authenticated/tracker.tsx`: the "beacon is gone" effect (snapshot returns `null`, or access is lost) also clears the selection, removes the cached snapshot, drops the live badge and shows a toast; the beacons list keeps a background refresh interval.
-- `src/routes/_authenticated/admin.tsx`: delete confirmation text names the beacon and its follower count, using the count already returned by `adminListBeacons`.
-- No database or policy changes: `beacon_watchers.beacon_id` and `beacon_positions.beacon_id` already use `ON DELETE CASCADE`, so follow rows and history vanish with the beacon.
+- `src/lib/tracking.functions.ts`: `getBeacon` drops the `isAdmin` bypass and requires `watcher.status === "approved"`; it returns `null` (not an error) when the beacon is missing so the page recovers cleanly.
+- `src/routes/_authenticated/tracker.tsx`: the "beacon is gone" effect (snapshot returns `null`, or access is lost) clears the selection, removes the cached snapshot, drops the live badge and shows a toast; the beacons list keeps a background refresh interval.
+- Database: remove the admin-only SELECT paths that let an admin read positions of beacons they do not follow (`Admins read positions` on `beacon_positions`, `Admins read beacons` narrowed for reads) while keeping admin INSERT/UPDATE/DELETE and the service-role admin functions intact.
+- `src/routes/_authenticated/admin.tsx`: delete confirmation names the beacon and its follower count, using the count already returned by `adminListBeacons`.
+- No cascade work needed: `beacon_watchers.beacon_id` and `beacon_positions.beacon_id` already use `ON DELETE CASCADE`, so follow rows and history vanish with the beacon.
+
