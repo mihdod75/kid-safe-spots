@@ -38,9 +38,13 @@ export const listBeacons = createServerFn({ method: "GET" })
 
     await supabase.from("profiles").upsert({ id: userId }, { onConflict: "id" });
 
+    // Caller is verified by requireSupabaseAuth above; we only ever project
+    // safe columns here (never secret_code).
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
     const [{ data: beacons, error }, { data: watchers }] = await Promise.all([
-      supabase
-        .from("beacon_directory")
+      supabaseAdmin
+        .from("beacons")
         .select("id, name, battery_level, last_seen_at")
         .order("name"),
       supabase
@@ -55,13 +59,11 @@ export const listBeacons = createServerFn({ method: "GET" })
       (watchers ?? []).map((w) => [w.beacon_id, w] as const),
     );
 
-    return (beacons ?? [])
-      .filter((b): b is typeof b & { id: string } => Boolean(b.id))
-      .map((b) => {
+    return (beacons ?? []).map((b) => {
       const watcher = byBeacon.get(b.id);
       return {
         id: b.id,
-        name: b.name ?? "Beacon",
+        name: b.name,
         label: watcher?.label ?? null,
         status: (watcher?.status as BeaconSummary["status"]) ?? "none",
         watcherId: watcher?.id ?? null,
