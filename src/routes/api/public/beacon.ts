@@ -1,14 +1,71 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 
-const bodySchema = z.object({
-  pairing_key: z.string().min(32).max(128),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-  accuracy_m: z.number().min(0).max(100000).optional(),
-  battery_level: z.number().int().min(0).max(100).optional(),
-  recorded_at: z.string().optional(),
+// Android clients send snake_case, camelCase or PascalCase; accept all three.
+const num = z.union([z.number(), z.string()]).transform((v) => Number(v));
+
+const rawSchema = z
+  .object({
+    pairing_key: z.string().optional(),
+    pairingKey: z.string().optional(),
+    PairingKey: z.string().optional(),
+    secret_code: z.string().optional(),
+    secretCode: z.string().optional(),
+    SecretCode: z.string().optional(),
+    latitude: num.optional(),
+    Latitude: num.optional(),
+    lat: num.optional(),
+    longitude: num.optional(),
+    Longitude: num.optional(),
+    lon: num.optional(),
+    lng: num.optional(),
+    accuracy_m: num.optional(),
+    accuracyM: num.optional(),
+    AccuracyM: num.optional(),
+    accuracy: num.optional(),
+    battery_level: num.optional(),
+    batteryLevel: num.optional(),
+    BatteryLevel: num.optional(),
+    battery: num.optional(),
+    recorded_at: z.string().optional(),
+    recordedAt: z.string().optional(),
+    RecordedAt: z.string().optional(),
+  })
+  .passthrough();
+
+const bodySchema = rawSchema.transform((v, ctx) => {
+  const pairingKey =
+    v.pairing_key ?? v.pairingKey ?? v.PairingKey ?? v.secret_code ?? v.secretCode ?? v.SecretCode;
+  const latitude = v.latitude ?? v.Latitude ?? v.lat;
+  const longitude = v.longitude ?? v.Longitude ?? v.lon ?? v.lng;
+  const accuracy = v.accuracy_m ?? v.accuracyM ?? v.AccuracyM ?? v.accuracy;
+  const battery = v.battery_level ?? v.batteryLevel ?? v.BatteryLevel ?? v.battery;
+  const recordedAt = v.recorded_at ?? v.recordedAt ?? v.RecordedAt;
+
+  const bad = (path: string, message: string) =>
+    ctx.addIssue({ code: "custom", path: [path], message });
+
+  if (!pairingKey || pairingKey.length < 32 || pairingKey.length > 128)
+    bad("pairing_key", "Required, 32-128 characters");
+  if (latitude === undefined || Number.isNaN(latitude) || latitude < -90 || latitude > 90)
+    bad("latitude", "Required number between -90 and 90");
+  if (longitude === undefined || Number.isNaN(longitude) || longitude < -180 || longitude > 180)
+    bad("longitude", "Required number between -180 and 180");
+
+  return {
+    pairing_key: pairingKey as string,
+    latitude: latitude as number,
+    longitude: longitude as number,
+    accuracy_m:
+      accuracy !== undefined && !Number.isNaN(accuracy) ? Math.min(accuracy, 100000) : undefined,
+    battery_level:
+      battery !== undefined && !Number.isNaN(battery)
+        ? Math.max(0, Math.min(100, Math.round(battery)))
+        : undefined,
+    recorded_at: recordedAt,
+  };
 });
+
 
 // How old a reading may be before we fall back to server time.
 const MAX_AGE_MS = 5 * 60 * 1000;
@@ -41,7 +98,13 @@ export const Route = createFileRoute("/api/public/beacon")({
             field: issue.path.join(".") || "(body)",
             message: issue.message,
           }));
-          console.warn("[beacon] 400 invalid payload", JSON.stringify(issues));
+          const receivedFields =
+            body && typeof body === "object" && !Array.isArray(body) ? Object.keys(body) : [];
+          console.warn(
+            "[beacon] 400 invalid payload",
+            JSON.stringify({ issues, receivedFields }),
+          );
+
           return json({ error: "Invalid payload", issues }, 400);
         }
         const parsed = result.data;

@@ -138,14 +138,27 @@ export const Route = createFileRoute("/api/public/beacon-enroll")({
           return json({ error: "Too many pending requests, try again later" }, 429);
         }
 
+        const deviceLabel = parsed.deviceLabel ?? "Android phone";
+
         const { error } = await supabaseAdmin.from("beacon_enrollments").insert({
           enrollment_code_hash: hash,
           pairing_word: parsed.pairingWord.toUpperCase(),
-          device_label: parsed.deviceLabel ?? "Android phone",
+          device_label: deviceLabel,
         });
         if (error) return json({ error: "Could not register the request" }, 500);
 
+        // The phone makes a brand-new code on every attempt, so older pending
+        // requests from the same device are dead: retire them, otherwise the
+        // admin can approve one the phone is no longer waiting on.
+        await supabaseAdmin
+          .from("beacon_enrollments")
+          .update({ status: "rejected" })
+          .eq("device_label", deviceLabel)
+          .eq("status", "pending")
+          .neq("enrollment_code_hash", hash);
+
         return json({ status: "pending" });
+
       },
     },
   },
