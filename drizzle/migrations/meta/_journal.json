@@ -78,6 +78,13 @@
       "when": 1789455466145,
       "tag": "0010_watchers_no_direct_updates",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1789456123766,
+      "tag": "0011_fix_watcher_status_guard_role_check",
+      "breakpoints": true
     }
   ]
 }
