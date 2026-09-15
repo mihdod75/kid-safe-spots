@@ -166,14 +166,15 @@ function TrackerPage() {
       snapshot.error instanceof Error && /do not have access/i.test(snapshot.error.message);
     const gone = (snapshot.isSuccess && snapshot.data === null) || lostAccess;
 
-    if (gone && selectedId) {
+    if (gone && selectedId && !goneRef.current.has(selectedId)) {
+      goneRef.current.add(selectedId);
       queryClient.removeQueries({ queryKey: ["beacon", selectedId] });
       setSelectedId(null);
       setLive(false);
-      listQuery.refetch();
+      queryClient.invalidateQueries({ queryKey: ["beacons"] });
       toast.info("This beacon was removed");
     }
-  }, [snapshot.isSuccess, snapshot.isError, snapshot.data, selectedId, listQuery, queryClient]);
+  }, [snapshot.isSuccess, snapshot.isError, snapshot.data, snapshot.error, selectedId, queryClient]);
 
 
   useEffect(() => {
