@@ -6,6 +6,7 @@ export type BeaconSummary = {
   name: string;
   label: string | null;
   status: "none" | "pending" | "approved" | "declined";
+  watcherId: string | null;
 };
 
 export type BeaconSnapshot = {
