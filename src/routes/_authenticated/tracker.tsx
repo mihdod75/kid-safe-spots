@@ -118,7 +118,7 @@ function TrackerPage() {
   const others = useMemo(() => beacons.filter((b) => b.status !== "approved"), [beacons]);
 
   useEffect(() => {
-    if (!selectedId && approved.length > 0) setSelectedId(approved[0].id);
+    if (!selectedId && approved[0]) setSelectedId(approved[0].id);
     if (selectedId && !approved.some((b) => b.id === selectedId)) {
       setSelectedId(approved[0]?.id ?? null);
     }
