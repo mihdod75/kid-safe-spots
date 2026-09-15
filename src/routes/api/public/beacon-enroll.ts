@@ -100,14 +100,12 @@ export const Route = createFileRoute("/api/public/beacon-enroll")({
           .maybeSingle();
 
         if (existing) {
-          const stale =
-            existing.status === "rejected" ||
-            (existing.status === "pending" &&
-              new Date(existing.expires_at).getTime() < Date.now());
+          const reusable =
+            existing.status === "rejected" || existing.status === "pending";
 
-          // A previously rejected or expired request should not haunt the phone
-          // forever: reopen it as a fresh pending request.
-          if (stale) {
+          // The phone reuses one enrolment code, so a fresh attempt must refresh
+          // the pairing word shown to the admin instead of replaying the old one.
+          if (reusable) {
             const now = new Date();
             const { error: reopenError } = await supabaseAdmin
               .from("beacon_enrollments")
@@ -127,6 +125,7 @@ export const Route = createFileRoute("/api/public/beacon-enroll")({
 
           return json({ status: existing.status });
         }
+
 
 
         // Keep the queue small so nobody can flood it with join requests.
