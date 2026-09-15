@@ -392,7 +392,25 @@ function TrackerPage() {
                   className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
                 >
                   <span className="text-sm">{b.name}</span>
-                  {b.status === "pending" ? (
+                  {b.status !== "approved" && b.status !== "none" && adminQuery.data?.isAdmin && b.watcherId ? (
+                    <span className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {b.status === "pending" ? "Waiting for approval" : "Declined"}
+                      </span>
+                      <Button size="sm" onClick={() => handleDecide(b.watcherId!, true, b.id)}>
+                        Approve
+                      </Button>
+                      {b.status === "pending" && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDecide(b.watcherId!, false, b.id)}
+                        >
+                          Decline
+                        </Button>
+                      )}
+                    </span>
+                  ) : b.status === "pending" ? (
                     <span className="text-xs text-muted-foreground">Waiting for approval</span>
                   ) : b.status === "declined" ? (
                     <span className="text-xs text-destructive">Declined</span>
