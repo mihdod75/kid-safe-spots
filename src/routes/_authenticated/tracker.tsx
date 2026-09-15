@@ -285,8 +285,18 @@ function TrackerPage() {
         </div>
         <div className="flex items-center gap-1">
           {adminQuery.data?.isAdmin && (
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/admin">Admin</Link>
+            <Button variant="ghost" size="sm" asChild className="relative">
+              <Link to="/admin">
+                Admin
+                {pendingTotal > 0 && (
+                  <span
+                    className="absolute -right-0.5 -top-0.5 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground"
+                    aria-label={`${pendingTotal} ${pendingTotal === 1 ? "request" : "requests"} waiting`}
+                  >
+                    {pendingTotal > 9 ? "9+" : pendingTotal}
+                  </span>
+                )}
+              </Link>
             </Button>
           )}
           <Button variant="ghost" size="sm" onClick={handleSignOut}>
