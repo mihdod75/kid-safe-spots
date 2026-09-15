@@ -173,7 +173,10 @@ export const relabelBeacon = createServerFn({ method: "POST" })
     return { beaconId: data.beaconId, label };
   })
   .handler(async ({ data, context }) => {
-    const { error } = await context.supabase
+    // Followers have no update rights of their own in the database; the server
+    // makes the change, and only ever on this person's own row (label only).
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { error } = await supabaseAdmin
       .from("beacon_watchers")
       .update({ label: data.label })
       .eq("beacon_id", data.beaconId)
@@ -181,6 +184,7 @@ export const relabelBeacon = createServerFn({ method: "POST" })
     if (error) failSafely(error, "Could not save the name.");
     return { ok: true };
   });
+
 
 export const amIAdmin = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
