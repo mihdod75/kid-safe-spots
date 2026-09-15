@@ -1,32 +1,24 @@
-# Who can create beacon join requests
+# Remove the flagged beacon directory view
 
 ## What the scan flagged
 
-The scanner noticed there is no rule saying who may create a join request row, and warned that creation might be unrestricted.
+The beacon-name list I added earlier is served by a database view that runs with the creator's permissions. The scanner treats that pattern as a risk, because such a view sidesteps the per-user access rules.
 
-## What is actually true today
+## Fix
 
-I checked the database directly:
+Drop the view entirely and let the signed-in beacon list be built on the server instead:
 
-- Signed-in accounts and signed-out visitors have **no create permission at all** on the join-requests table. Only the server's own trusted key can write to it.
-- Signed-in accounts can only *read* a limited set of columns (pairing word, device label, status, timestamps) — never the secret join code hash.
+- The page's "browse beacons" list is produced by the server, which checks the caller is signed in and then returns only each beacon's name, battery and last-seen time.
+- Secret pairing codes stay unreachable — they are never selected and never leave the server.
+- Direct table access for ordinary accounts stays limited to admins and approved followers, exactly as it is now.
+- Nothing changes for the Android app or for the admin page.
 
-So join requests can only be created by the phone-enrolment endpoint, which already caps the pending queue at 25 requests. The warning is a false positive: the protection exists as a permission, not as a policy, so the scanner cannot see it.
-
-## Proposed change
-
-1. Add an explicit, self-documenting rule to the join-requests table that blocks creation by any signed-in or signed-out account (an always-false create policy). This changes no behaviour — it only makes the existing restriction visible to the scanner and to anyone reading the schema later.
-2. Re-run the security scan and mark this warning resolved.
-
-No app code changes, no change to how the Android app joins.
+Then re-run the security scan and mark the finding resolved.
 
 ## Technical detail
 
-Migration on `public.beacon_enrollments`:
-
-```sql
-CREATE POLICY "No client inserts" ON public.beacon_enrollments
-FOR INSERT TO authenticated, anon WITH CHECK (false);
-```
-
-`INSERT` remains ungranted for `authenticated`/`anon`; `service_role` keeps full access and bypasses RLS, so `src/routes/api/public/beacon-enroll.ts` continues to work unchanged.
+1. Migration: `DROP VIEW IF EXISTS public.beacon_directory;` (keep the current `beacons` policies: admin read, approved-watcher read via `private.is_watching`).
+2. `src/lib/tracking.functions.ts` → `listBeacons` (already behind `requireSupabaseAuth`): replace the `beacon_directory` read with a handler-scoped `await import("@/integrations/supabase/client.server")` and
+   `supabaseAdmin.from("beacons").select("id, name, battery_level, last_seen_at").order("name")`.
+   The caller is verified by the middleware first; the projection excludes `secret_code`.
+3. Watcher rows keep being read with the user-scoped client, so follow status stays per-user.
