@@ -142,13 +142,18 @@ function TrackerPage() {
 
   const data = snapshot.data ?? null;
 
-  // The selected beacon no longer exists — drop it and refresh the list.
+  // The selected beacon is gone (deleted, or access removed) — drop it,
+  // clear its cached snapshot and refresh the list.
   useEffect(() => {
-    if (snapshot.isSuccess && snapshot.data === null && selectedId) {
+    const gone = (snapshot.isSuccess && snapshot.data === null) || snapshot.isError;
+    if (gone && selectedId) {
+      queryClient.removeQueries({ queryKey: ["beacon", selectedId] });
       setSelectedId(null);
+      setLive(false);
       listQuery.refetch();
     }
-  }, [snapshot.isSuccess, snapshot.data, selectedId, listQuery]);
+  }, [snapshot.isSuccess, snapshot.isError, snapshot.data, selectedId, listQuery, queryClient]);
+
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 10_000);
