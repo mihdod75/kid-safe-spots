@@ -13,6 +13,7 @@ import {
   relabelBeacon,
   amIAdmin,
 } from "@/lib/tracking.functions";
+import { decideAccessRequest } from "@/lib/admin.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
