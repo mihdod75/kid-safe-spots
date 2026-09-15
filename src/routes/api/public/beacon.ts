@@ -98,7 +98,13 @@ export const Route = createFileRoute("/api/public/beacon")({
             field: issue.path.join(".") || "(body)",
             message: issue.message,
           }));
-          console.warn("[beacon] 400 invalid payload", JSON.stringify(issues));
+          const receivedFields =
+            body && typeof body === "object" && !Array.isArray(body) ? Object.keys(body) : [];
+          console.warn(
+            "[beacon] 400 invalid payload",
+            JSON.stringify({ issues, receivedFields }),
+          );
+
           return json({ error: "Invalid payload", issues }, 400);
         }
         const parsed = result.data;
