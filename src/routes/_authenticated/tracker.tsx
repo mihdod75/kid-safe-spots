@@ -101,10 +101,10 @@ function TrackerPage() {
     queryKey: ["beacons"],
     queryFn: () => withRefresh(() => fetchList()),
     retry: false,
-    // While a request is waiting for approval, check often so the beacon
-    // appears as soon as an admin approves it — no manual refresh needed.
+    // Keep the list fresh on its own: a waiting request appears as soon as it
+    // is approved, and a removed beacon disappears without a manual refresh.
     refetchInterval: (query) =>
-      (query.state.data ?? []).some((b) => b.status === "pending") ? 10_000 : false,
+      (query.state.data ?? []).some((b) => b.status === "pending") ? 10_000 : 30_000,
     refetchOnWindowFocus: true,
   });
 
@@ -142,13 +142,21 @@ function TrackerPage() {
 
   const data = snapshot.data ?? null;
 
-  // The selected beacon no longer exists — drop it and refresh the list.
+  // The selected beacon is gone (deleted, or access removed) — drop it,
+  // clear its cached snapshot and refresh the list.
   useEffect(() => {
-    if (snapshot.isSuccess && snapshot.data === null && selectedId) {
+    const lostAccess =
+      snapshot.error instanceof Error && /do not have access/i.test(snapshot.error.message);
+    const gone = (snapshot.isSuccess && snapshot.data === null) || lostAccess;
+
+    if (gone && selectedId) {
+      queryClient.removeQueries({ queryKey: ["beacon", selectedId] });
       setSelectedId(null);
+      setLive(false);
       listQuery.refetch();
     }
-  }, [snapshot.isSuccess, snapshot.data, selectedId, listQuery]);
+  }, [snapshot.isSuccess, snapshot.isError, snapshot.data, selectedId, listQuery, queryClient]);
+
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 10_000);
