@@ -75,6 +75,7 @@ function TrackerPage() {
   const rename = useServerFn(relabelBeacon);
   const checkAdmin = useServerFn(amIAdmin);
   const decide = useServerFn(decideAccessRequest);
+  const fetchPendingCounts = useServerFn(pendingAdminCounts);
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -114,6 +115,18 @@ function TrackerPage() {
     queryFn: () => withRefresh(() => checkAdmin()),
     retry: false,
   });
+
+  const pendingQuery = useQuery({
+    queryKey: ["admin-pending"],
+    enabled: !!adminQuery.data?.isAdmin,
+    queryFn: () => withRefresh(() => fetchPendingCounts()),
+    retry: false,
+    refetchInterval: 20_000,
+    refetchOnWindowFocus: true,
+  });
+
+  const pendingTotal =
+    (pendingQuery.data?.enrollments ?? 0) + (pendingQuery.data?.accessRequests ?? 0);
 
   useEffect(() => {
     if (listQuery.error instanceof Error && /unauthor/i.test(listQuery.error.message)) {
