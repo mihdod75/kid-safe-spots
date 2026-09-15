@@ -40,7 +40,7 @@ export const listBeacons = createServerFn({ method: "GET" })
 
     const [{ data: beacons, error }, { data: watchers }] = await Promise.all([
       supabase
-        .from("beacons")
+        .from("beacon_directory")
         .select("id, name, battery_level, last_seen_at")
         .order("name"),
       supabase
