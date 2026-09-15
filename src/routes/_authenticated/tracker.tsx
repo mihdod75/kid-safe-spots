@@ -1,11 +1,18 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { ClientOnly } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import { getTracker, renameChild, regeneratePairingKey } from "@/lib/tracking.functions";
+import {
+  listBeacons,
+  getBeacon,
+  requestAccess,
+  stopFollowing,
+  relabelBeacon,
+  amIAdmin,
+} from "@/lib/tracking.functions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,12 +25,12 @@ export const Route = createFileRoute("/_authenticated/tracker")({
       { title: "Live tracker — Beacon Kid" },
       {
         name: "description",
-        content: "See your child's live position, battery level and last signal on one private map.",
+        content: "Follow an approved beacon live: position, battery level and last signal on one private map.",
       },
       { property: "og:title", content: "Live tracker — Beacon Kid" },
       {
         property: "og:description",
-        content: "See your child's live position, battery level and last signal on one private map.",
+        content: "Follow an approved beacon live: position, battery level and last signal on one private map.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -60,78 +67,101 @@ function timeAgo(iso: string | null) {
 }
 
 function TrackerPage() {
-  const fetchTracker = useServerFn(getTracker);
-  const rename = useServerFn(renameChild);
-  const rotateKey = useServerFn(regeneratePairingKey);
-  const [rotating, setRotating] = useState(false);
+  const fetchList = useServerFn(listBeacons);
+  const fetchBeacon = useServerFn(getBeacon);
+  const askAccess = useServerFn(requestAccess);
+  const unfollow = useServerFn(stopFollowing);
+  const rename = useServerFn(relabelBeacon);
+  const checkAdmin = useServerFn(amIAdmin);
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const mapRef = useRef<{ recenter: () => void } | null>(null);
   const [, setTick] = useState(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editing, setEditing] = useState(false);
   const [nameDraft, setNameDraft] = useState("");
-
   const [live, setLive] = useState(false);
-  const [keyVisible, setKeyVisible] = useState(false);
 
-  const { data, isPending, isError, error, refetch, isFetching } = useQuery({
-    queryKey: ["tracker"],
-    queryFn: async () => {
-      try {
-        return await fetchTracker();
-      } catch (err) {
-        // An expired access token makes the server reject the call; refresh the
-        // session once and try again before giving up.
-        if (err instanceof Error && /unauthor/i.test(err.message)) {
-          const { data: refreshed } = await supabase.auth.refreshSession();
-          if (refreshed.session) return await fetchTracker();
-        }
-        throw err;
+  const withRefresh = async <T,>(fn: () => Promise<T>): Promise<T> => {
+    try {
+      return await fn();
+    } catch (err) {
+      if (err instanceof Error && /unauthor/i.test(err.message)) {
+        const { data: refreshed } = await supabase.auth.refreshSession();
+        if (refreshed.session) return await fn();
       }
-    },
+      throw err;
+    }
+  };
+
+  const listQuery = useQuery({
+    queryKey: ["beacons"],
+    queryFn: () => withRefresh(() => fetchList()),
+    retry: false,
+  });
+
+  const adminQuery = useQuery({
+    queryKey: ["is-admin"],
+    queryFn: () => withRefresh(() => checkAdmin()),
+    retry: false,
+  });
+
+  useEffect(() => {
+    if (listQuery.error instanceof Error && /unauthor/i.test(listQuery.error.message)) {
+      navigate({ to: "/auth", replace: true });
+    }
+  }, [listQuery.error, navigate]);
+
+  const beacons = listQuery.data ?? [];
+  const approved = useMemo(() => beacons.filter((b) => b.status === "approved"), [beacons]);
+  const others = useMemo(() => beacons.filter((b) => b.status !== "approved"), [beacons]);
+
+  useEffect(() => {
+    if (!selectedId && approved.length > 0) setSelectedId(approved[0].id);
+    if (selectedId && !approved.some((b) => b.id === selectedId)) {
+      setSelectedId(approved[0]?.id ?? null);
+    }
+  }, [approved, selectedId]);
+
+  const snapshot = useQuery({
+    queryKey: ["beacon", selectedId],
+    enabled: !!selectedId,
+    queryFn: () => withRefresh(() => fetchBeacon({ data: { beaconId: selectedId! } })),
     retry: false,
     refetchInterval: 60_000,
   });
 
-  // Session is really gone — send the parent back to sign in instead of
-  // leaving a blank page behind.
-  useEffect(() => {
-    if (error instanceof Error && /unauthor/i.test(error.message)) {
-      navigate({ to: "/auth", replace: true });
-    }
-  }, [error, navigate]);
+  const data = snapshot.data;
 
   useEffect(() => {
     const id = setInterval(() => setTick((t) => t + 1), 10_000);
     return () => clearInterval(id);
   }, []);
 
-  const deviceId = data?.device.id;
   useEffect(() => {
-    if (!deviceId) return;
+    if (!selectedId) return;
     const channel = supabase
-      .channel(`locations-${deviceId}`)
+      .channel(`beacon-${selectedId}`)
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
-          table: "locations",
-          filter: `device_id=eq.${deviceId}`,
+          table: "beacon_positions",
+          filter: `beacon_id=eq.${selectedId}`,
         },
         () => {
-          queryClient.invalidateQueries({ queryKey: ["tracker"] });
+          queryClient.invalidateQueries({ queryKey: ["beacon", selectedId] });
         },
       )
-      .subscribe((status) => {
-        setLive(status === "SUBSCRIBED");
-      });
+      .subscribe((status) => setLive(status === "SUBSCRIBED"));
 
     return () => {
       setLive(false);
       supabase.removeChannel(channel);
     };
-  }, [deviceId, queryClient]);
+  }, [selectedId, queryClient]);
 
   async function handleSignOut() {
     await queryClient.cancelQueries();
@@ -141,41 +171,43 @@ function TrackerPage() {
   }
 
   async function saveName() {
-    if (!data) return;
+    if (!selectedId) return;
     try {
-      await rename({ data: { deviceId: data.device.id, childName: nameDraft } });
+      await rename({ data: { beaconId: selectedId, label: nameDraft } });
       setEditing(false);
-      await refetch();
+      await Promise.all([listQuery.refetch(), snapshot.refetch()]);
       toast.success("Name updated");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not save the name");
     }
   }
 
-  async function handleRegenerate() {
-    if (!data) return;
-    if (
-      !window.confirm(
-        "Generate a new pairing key? The beacon app will stop sending positions until you enter the new key.",
-      )
-    )
-      return;
-    setRotating(true);
+  async function handleRequest(beaconId: string) {
     try {
-      await rotateKey({ data: { deviceId: data.device.id } });
-      await refetch();
-      toast.success("New pairing key generated");
+      await askAccess({ data: { beaconId } });
+      await listQuery.refetch();
+      toast.success("Request sent — an admin will review it");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Could not regenerate the key");
-    } finally {
-      setRotating(false);
+      toast.error(error instanceof Error ? error.message : "Could not send the request");
     }
   }
 
+  async function handleStop(beaconId: string) {
+    if (!window.confirm("Stop following this beacon?")) return;
+    try {
+      await unfollow({ data: { beaconId } });
+      await listQuery.refetch();
+      toast.success("Removed from your list");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not remove it");
+    }
+  }
+
+  const displayName = data?.beacon.label ?? data?.beacon.name ?? "…";
   const stale =
     data?.position &&
     Date.now() - parseTimestamp(data.position.recordedAt).getTime() > 10 * 60 * 1000;
-  const lowBattery = (data?.device.batteryLevel ?? 100) <= 20;
+  const lowBattery = (data?.beacon.batteryLevel ?? 100) <= 20;
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -184,9 +216,16 @@ function TrackerPage() {
           <span className="inline-block h-2.5 w-2.5 rounded-full bg-primary" aria-hidden />
           <span className="text-sm font-semibold tracking-tight">Beacon Kid</span>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleSignOut}>
-          Sign out
-        </Button>
+        <div className="flex items-center gap-1">
+          {adminQuery.data?.isAdmin && (
+            <Button variant="ghost" size="sm" asChild>
+              <Link to="/admin">Admin</Link>
+            </Button>
+          )}
+          <Button variant="ghost" size="sm" onClick={handleSignOut}>
+            Sign out
+          </Button>
+        </div>
       </header>
 
       <main className="flex flex-1 flex-col gap-4 p-4 sm:p-6 lg:flex-row">
@@ -198,16 +237,18 @@ function TrackerPage() {
                   ref={mapRef}
                   latitude={data.position.latitude}
                   longitude={data.position.longitude}
-                  label={data.device.childName}
+                  label={displayName}
                 />
               </Suspense>
             </ClientOnly>
           ) : (
             <MapPlaceholder
               text={
-                isPending
+                listQuery.isPending
                   ? "Loading…"
-                  : "Waiting for the first signal from the beacon app."
+                  : approved.length === 0
+                    ? "Pick a beacon below and ask an admin for access."
+                    : "Waiting for the first signal from this beacon."
               }
             />
           )}
@@ -225,138 +266,137 @@ function TrackerPage() {
         </section>
 
         <aside className="w-full space-y-4 lg:max-w-sm">
-          <div className="rounded-xl border border-border bg-card p-5">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs uppercase tracking-wide text-muted-foreground">Tracking</p>
-                  {live && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
-                      <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
-                      Live
-                    </span>
+          {approved.length > 1 && (
+            <div className="flex flex-wrap gap-2">
+              {approved.map((b) => (
+                <Button
+                  key={b.id}
+                  size="sm"
+                  variant={b.id === selectedId ? "default" : "outline"}
+                  onClick={() => setSelectedId(b.id)}
+                >
+                  {b.label ?? b.name}
+                </Button>
+              ))}
+            </div>
+          )}
+
+          {selectedId && (
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">Tracking</p>
+                    {live && (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-primary">
+                        <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
+                        Live
+                      </span>
+                    )}
+                  </div>
+                  {editing ? (
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        value={nameDraft}
+                        onChange={(e) => setNameDraft(e.target.value)}
+                        className="h-9"
+                        aria-label="Beacon name"
+                      />
+                      <Button size="sm" onClick={saveName}>
+                        Save
+                      </Button>
+                    </div>
+                  ) : (
+                    <h1 className="text-2xl font-semibold tracking-tight">{displayName}</h1>
                   )}
                 </div>
-                {editing ? (
-                  <div className="mt-2 flex gap-2">
-                    <Input
-                      value={nameDraft}
-                      onChange={(e) => setNameDraft(e.target.value)}
-                      className="h-9"
-                      aria-label="Child name"
-                    />
-                    <Button size="sm" onClick={saveName}>
-                      Save
-                    </Button>
-                  </div>
-                ) : (
-                  <h1 className="text-2xl font-semibold tracking-tight">
-                    {data?.device.childName ?? "…"}
-                  </h1>
+                {!editing && data && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setNameDraft(data.beacon.label ?? data.beacon.name);
+                      setEditing(true);
+                    }}
+                  >
+                    Edit
+                  </Button>
                 )}
               </div>
-              {!editing && data && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setNameDraft(data.device.childName);
-                    setEditing(true);
-                  }}
-                >
-                  Edit
-                </Button>
+
+              <dl className="mt-5 grid grid-cols-2 gap-4">
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">Battery</dt>
+                  <dd
+                    className={`mt-1 text-xl font-semibold ${
+                      lowBattery ? "text-destructive" : "text-foreground"
+                    }`}
+                  >
+                    {data?.beacon.batteryLevel != null ? `${data.beacon.batteryLevel}%` : "—"}
+                  </dd>
+                </div>
+                <div>
+                  <dt className="text-xs uppercase tracking-wide text-muted-foreground">Last seen</dt>
+                  <dd
+                    className={`mt-1 text-xl font-semibold ${
+                      stale ? "text-destructive" : "text-foreground"
+                    }`}
+                  >
+                    {timeAgo(data?.beacon.lastSeenAt ?? data?.position?.recordedAt ?? null)}
+                  </dd>
+                </div>
+              </dl>
+
+              {stale && (
+                <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                  No fresh signal for over 10 minutes.
+                </p>
               )}
-            </div>
 
-            <dl className="mt-5 grid grid-cols-2 gap-4">
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Battery</dt>
-                <dd
-                  className={`mt-1 text-xl font-semibold ${
-                    lowBattery ? "text-destructive" : "text-foreground"
-                  }`}
-                >
-                  {data?.device.batteryLevel != null ? `${data.device.batteryLevel}%` : "—"}
-                </dd>
-              </div>
-              <div>
-                <dt className="text-xs uppercase tracking-wide text-muted-foreground">Last seen</dt>
-                <dd
-                  className={`mt-1 text-xl font-semibold ${
-                    stale ? "text-destructive" : "text-foreground"
-                  }`}
-                >
-                  {timeAgo(data?.device.lastSeenAt ?? data?.position?.recordedAt ?? null)}
-                </dd>
-              </div>
-            </dl>
-
-            {stale && (
-              <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                No fresh signal for over 10 minutes.
-              </p>
-            )}
-            {isError && (
-              <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                Could not load the latest position.
-              </p>
-            )}
-
-            <Button
-              className="mt-5 w-full"
-              variant="secondary"
-              onClick={() => refetch()}
-              disabled={isFetching}
-            >
-              {isFetching ? "Refreshing…" : "Refresh now"}
-            </Button>
-          </div>
-
-          {data && (
-            <div className="rounded-xl border border-border bg-card p-5">
-              <p className="text-sm font-medium">Pair the Android beacon</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {data.device.isDemo
-                  ? "Showing a simulated position until the phone starts sending its own."
-                  : "This phone is sending real positions."}
-              </p>
-              <p className="mt-3 text-xs uppercase tracking-wide text-muted-foreground">
-                Pairing key
-              </p>
-              <code className="mt-1 block break-all rounded-md bg-muted px-3 py-2 font-mono text-xs">
-                {keyVisible ? data.device.pairingKey : "•".repeat(32)}
-              </code>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-5 flex gap-2">
                 <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setKeyVisible((v) => !v)}
-                  aria-pressed={keyVisible}
+                  className="flex-1"
+                  variant="secondary"
+                  onClick={() => snapshot.refetch()}
+                  disabled={snapshot.isFetching}
                 >
-                  {keyVisible ? "Hide key" : "Show key"}
+                  {snapshot.isFetching ? "Refreshing…" : "Refresh now"}
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(data.device.pairingKey);
-                    toast.success("Pairing key copied");
-                  }}
-                >
-                  Copy key
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleRegenerate}
-                  disabled={rotating}
-                >
-                  {rotating ? "Generating…" : "Regenerate key"}
+                <Button variant="ghost" onClick={() => handleStop(selectedId)}>
+                  Stop following
                 </Button>
               </div>
             </div>
           )}
+
+          <div className="rounded-xl border border-border bg-card p-5">
+            <p className="text-sm font-medium">Beacons</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Ask an admin for access to a beacon you want to follow.
+            </p>
+            <ul className="mt-4 space-y-2">
+              {others.length === 0 && (
+                <li className="text-sm text-muted-foreground">No other beacons registered.</li>
+              )}
+              {others.map((b) => (
+                <li
+                  key={b.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2"
+                >
+                  <span className="text-sm">{b.name}</span>
+                  {b.status === "pending" ? (
+                    <span className="text-xs text-muted-foreground">Waiting for approval</span>
+                  ) : b.status === "declined" ? (
+                    <span className="text-xs text-destructive">Declined</span>
+                  ) : (
+                    <Button size="sm" variant="outline" onClick={() => handleRequest(b.id)}>
+                      Request access
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
         </aside>
       </main>
     </div>
