@@ -87,8 +87,10 @@ export const getBeacon = createServerFn({ method: "POST" })
     }
 
     const { data: beaconRows, error } = await supabase.rpc("list_beacon_names");
+    if (error) failSafely(error, "Could not load this beacon.");
     const beacon = (beaconRows ?? []).find((b) => b.id === data.beaconId);
-    if (error || !beacon) failSafely(error, "Could not load this beacon.");
+    // The beacon was removed (or is no longer visible) — let the page recover.
+    if (!beacon) return null;
 
     const { data: latest } = await supabase
       .from("beacon_positions")
