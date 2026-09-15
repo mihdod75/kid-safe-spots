@@ -1,30 +1,25 @@
-# Fix "Enrolment submission failed: NotFound"
+# Fix the two security issues, then publish
 
-## What is happening
+## What's wrong today
 
-The join-request address exists and works, but only in the preview version of the site. I tested both:
-
-- preview address: accepted the request (success)
-- live address `https://kid-safe-spots.lovable.app/api/public/beacon-enroll`: "not found"
-
-The published site is still the older version, from before the new join-and-approve flow was built. Your phone posts to the live address, so it gets "NotFound".
+1. **People could approve their own access request.** The rule that lets someone rename a beacon they follow also lets them flip their own request to "approved". A safety guard already blocks most of this, but the rule itself is too broad.
+2. **Beacon secrets are readable by any signed-in account.** The list of beacons is open to every signed-in user and includes the secret code that phones use to send positions. The app pages don't show it, but the data itself is reachable.
 
 ## The fix
 
-Publish the app again. That puts the three phone-facing addresses on the live site:
+- Narrow the follower rule so a person can only change their own label/note — never their own status. Status changes stay admin-only.
+- Stop exposing the beacons table directly. Signed-in users get a safe view with only id, name, battery and last-seen; the secret stays available to admins only, through the existing admin page.
+- Re-check the scan afterwards and clear the two findings.
 
-- `/api/public/beacon-enroll` — the phone asks to join
-- `/api/public/beacon-enroll-status` — the phone collects its secret once approved
-- `/api/public/beacon` — the phone posts positions
+## Then publish
 
-## After publishing
+Publish the app so the live address serves the new beacon flow, which makes the phone's join request work instead of returning "NotFound".
 
-1. Send the join request again from the phone; it should come back as "pending".
-2. Open the Admin page, check the short code shown on the phone matches, give the beacon a name and approve it.
-3. The phone's next status check receives the secret (once only) and can start posting positions.
-4. On the tracker page, request access to that beacon and approve the request from Admin, and the map starts updating live.
+## Technical notes
 
-## Note while testing
-
-If you want to try the phone against the preview first, point it at
-`https://id-preview--dba904b8-c3c9-4e5e-9c9f-78d7213139c5.lovable.app` — it already runs the new flow.
+- New migration `drizzle/migrations/0005_tighten_beacon_rls.sql`:
+  - Replace `Users update own label` on `beacon_watchers` with a policy whose `WITH CHECK` also requires `status = (select status from ... old row)` — enforced via the existing `guard_watcher_status` trigger plus restricting the policy to owner rows only.
+  - Drop `Signed-in users list beacons` on `public.beacons`; add `public.beacons_public` (security_invoker view or security-definer function) exposing `id, name, battery_level, last_seen_at`, granted to `authenticated`. Keep admin SELECT on `public.beacons` via `has_role(auth.uid(),'admin')`.
+  - Re-grant appropriately; admin server functions use the admin client and are unaffected.
+- Update `src/lib/tracking.functions.ts` (`listBeacons`, `getBeacon`) to read from the safe source.
+- Run the security scan, mark the two findings fixed, verify the build, then publish.
