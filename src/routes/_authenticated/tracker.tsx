@@ -145,7 +145,10 @@ function TrackerPage() {
   // The selected beacon is gone (deleted, or access removed) — drop it,
   // clear its cached snapshot and refresh the list.
   useEffect(() => {
-    const gone = (snapshot.isSuccess && snapshot.data === null) || snapshot.isError;
+    const lostAccess =
+      snapshot.error instanceof Error && /do not have access/i.test(snapshot.error.message);
+    const gone = (snapshot.isSuccess && snapshot.data === null) || lostAccess;
+
     if (gone && selectedId) {
       queryClient.removeQueries({ queryKey: ["beacon", selectedId] });
       setSelectedId(null);
