@@ -78,25 +78,35 @@ export const Route = createFileRoute("/api/public/beacon-enroll-status")({
         if (!enrollment) return json({ status: "unknown" }, 404);
 
         if (enrollment.status === "rejected") return json({ status: "rejected" });
-        if (enrollment.status === "claimed") return json({ status: "claimed" });
-        if (enrollment.status !== "approved") {
-          if (new Date(enrollment.expires_at).getTime() < Date.now())
-            return json({ status: "expired" });
+
+        const expired = new Date(enrollment.expires_at).getTime() < Date.now();
+
+        if (enrollment.status !== "approved" && enrollment.status !== "claimed") {
+          if (expired) return json({ status: "expired" });
           return json({ status: "pending" });
         }
+
+        // Already handed over: keep repeating the same answer until the request expires,
+        // so a restart or a dropped connection does not lose the secret.
+        if (enrollment.status === "claimed" && expired)
+          return json({ status: "expired" });
+
+        if (!enrollment.beacon_id) return json({ status: "expired" });
 
         const { data: beacon } = await supabaseAdmin
           .from("beacons")
           .select("id, name, secret_code")
-          .eq("id", enrollment.beacon_id!)
+          .eq("id", enrollment.beacon_id)
           .maybeSingle();
-        if (!beacon) return json({ error: "Beacon missing" }, 500);
+        if (!beacon) return json({ status: "expired" });
 
-        // The secret is handed over exactly once; the enrolment code dies here.
-        await supabaseAdmin
-          .from("beacon_enrollments")
-          .update({ status: "claimed", claimed_at: new Date().toISOString() })
-          .eq("id", enrollment.id);
+        // Record the first handover; later polls repeat the same answer.
+        if (enrollment.status !== "claimed") {
+          await supabaseAdmin
+            .from("beacon_enrollments")
+            .update({ status: "claimed", claimed_at: new Date().toISOString() })
+            .eq("id", enrollment.id);
+        }
 
         return json({
           status: "approved",
