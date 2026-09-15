@@ -14,7 +14,17 @@ Change the model from "one child per account" to "the Android app creates a secr
 
 The current beacon and its stored positions are left behind; the page starts with an empty list and an "Add a beacon" box asking for the secret and a name.
 
+## What the risks are, and how the plan handles them
+
+- **The secret is the whole lock.** Anyone who sees it can both follow the child and post fake positions. Mitigated by: minimum 32 characters of real randomness generated on the phone, never shown on this page, sent only over HTTPS. Not mitigated: if it leaks (screenshot, chat message), access is permanent until the phone generates a new one.
+- **Guessing a secret.** With 32+ random characters, guessing is not realistic. The add-a-beacon form and the posting endpoint both get rate limiting so someone can't try codes in bulk, and both answer the same way whether or not a code exists.
+- **Anyone can create a beacon just by posting.** That's the point of the phone-generated flow, but it means unlimited rows could be created. The endpoint accepts a new beacon only with a well-formed secret, and each new beacon is capped on how many positions it stores per minute.
+- **No way to revoke.** Because the phone owns the secret, rotation means generating a new one in the app; the old beacon then goes silent and can be removed from the list. Worth adding a "stop following" and, later, an owner-only kick-out if you want that.
+- **Position history is personal data.** Reads stay scoped by the database to people who have added that beacon; the page's own checks are not the only barrier.
+
 ## Technical notes
+
+
 
 - New tables (existing `devices`/`locations` stay in place, unused, since columns can't be dropped safely):
   - `beacons` — `id`, `secret_code` (unique, phone-supplied, 32–128 chars), `battery_level`, `last_seen_at`, `first_seen_at`, `created_at`.
