@@ -43,6 +43,13 @@
       "when": 1789452400633,
       "tag": "0005_tighten_beacon_rls",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1789452429935,
+      "tag": "0006_beacon_names_function",
+      "breakpoints": true
     }
   ]
 }
