@@ -45,7 +45,7 @@ export const listBeacons = createServerFn({ method: "GET" })
         .order("name"),
       supabase
         .from("beacon_watchers")
-        .select("beacon_id, label, status")
+        .select("id, beacon_id, label, status")
         .eq("user_id", userId),
     ]);
     if (error) failSafely(error, "Could not load the beacon list.");
