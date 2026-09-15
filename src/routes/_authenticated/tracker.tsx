@@ -101,7 +101,13 @@ function TrackerPage() {
     queryKey: ["beacons"],
     queryFn: () => withRefresh(() => fetchList()),
     retry: false,
+    // While a request is waiting for approval, check often so the beacon
+    // appears as soon as an admin approves it — no manual refresh needed.
+    refetchInterval: (query) =>
+      (query.state.data ?? []).some((b) => b.status === "pending") ? 10_000 : false,
+    refetchOnWindowFocus: true,
   });
+
 
   const adminQuery = useQuery({
     queryKey: ["is-admin"],
