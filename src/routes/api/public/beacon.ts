@@ -80,6 +80,68 @@ const json = (body: unknown, status = 200) =>
     headers: { "content-type": "application/json" },
   });
 
+function humanGap(minutes: number) {
+  if (minutes < 60) return `${minutes} minutes`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+  const days = Math.round(hours / 24);
+  return `${days} ${days === 1 ? "day" : "days"}`;
+}
+
+/** Push a "started sending again" notification to opted-in approved followers. */
+async function notifyWakeUp(
+  beaconId: string,
+  beaconName: string,
+  gapMinutes: number,
+  recordedAtIso: string,
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+
+  const { data: watchers } = await supabaseAdmin
+    .from("beacon_watchers")
+    .select("user_id, label, notify_gap_minutes")
+    .eq("beacon_id", beaconId)
+    .eq("status", "approved")
+    .eq("notify_wake", true)
+    .lte("notify_gap_minutes", gapMinutes)
+    .limit(100);
+
+  if (!watchers?.length) return;
+
+  const { data: subscriptions } = await supabaseAdmin
+    .from("push_subscriptions")
+    .select("id, user_id, endpoint, p256dh, auth")
+    .in("user_id", watchers.map((w) => w.user_id))
+    .limit(100);
+
+  if (!subscriptions?.length) return;
+
+  const labelByUser = new Map(watchers.map((w) => [w.user_id, w.label ?? beaconName]));
+  const { sendPush } = await import("@/lib/web-push.server");
+  const stale: string[] = [];
+
+  await Promise.all(
+    subscriptions.map(async (sub) => {
+      const name = labelByUser.get(sub.user_id) ?? beaconName;
+      const result = await sendPush(sub, {
+        title: `${name} is sending again`,
+        body: `Back online after ${humanGap(gapMinutes)} of silence. Tap to see where it is.`,
+        tag: `beacon-awake-${beaconId}`,
+        url: "/tracker",
+      });
+      if (!result.ok && result.gone) stale.push(sub.id);
+    }),
+  );
+
+  if (stale.length) {
+    await supabaseAdmin.from("push_subscriptions").delete().in("id", stale);
+  }
+
+  console.log(
+    `[beacon] wake notifications sent for ${beaconId} at ${recordedAtIso} (gap ${gapMinutes}m, ${subscriptions.length} devices)`,
+  );
+}
+
 export const Route = createFileRoute("/api/public/beacon")({
   server: {
     handlers: {
@@ -123,7 +185,7 @@ export const Route = createFileRoute("/api/public/beacon")({
 
         const { data: beacon, error } = await supabaseAdmin
           .from("beacons")
-          .select("id, last_seen_at")
+          .select("id, name, last_seen_at")
           .eq("secret_code", parsed.pairing_key)
           .maybeSingle();
 
@@ -164,6 +226,16 @@ export const Route = createFileRoute("/api/public/beacon")({
                 : {}),
             })
             .eq("id", beacon.id);
+
+          // The beacon woke up after a quiet spell — tell the followers who asked.
+          if (lastSeenMs) {
+            const gapMinutes = Math.floor((recordedAt.getTime() - lastSeenMs) / 60000);
+            if (gapMinutes >= 5) {
+              await notifyWakeUp(beacon.id, beacon.name, gapMinutes, recordedAtIso).catch(
+                (err) => console.error("[beacon] wake notification failed", err),
+              );
+            }
+          }
         }
 
         return json({
