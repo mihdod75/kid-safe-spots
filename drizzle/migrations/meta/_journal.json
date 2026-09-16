@@ -113,6 +113,13 @@
       "when": 1789459692022,
       "tag": "0015_admins_need_approval_to_view",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1789563365055,
+      "tag": "0016_push_wake_alerts",
+      "breakpoints": true
     }
   ]
 }
