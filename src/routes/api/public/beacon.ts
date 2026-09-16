@@ -164,6 +164,16 @@ export const Route = createFileRoute("/api/public/beacon")({
                 : {}),
             })
             .eq("id", beacon.id);
+
+          // The beacon woke up after a quiet spell — tell the followers who asked.
+          if (lastSeenMs) {
+            const gapMinutes = Math.floor((recordedAt.getTime() - lastSeenMs) / 60000);
+            if (gapMinutes >= 5) {
+              await notifyWakeUp(beacon.id, beacon.name, gapMinutes, recordedAtIso).catch(
+                (err) => console.error("[beacon] wake notification failed", err),
+              );
+            }
+          }
         }
 
         return json({
