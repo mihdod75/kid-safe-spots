@@ -123,7 +123,7 @@ export const Route = createFileRoute("/api/public/beacon")({
 
         const { data: beacon, error } = await supabaseAdmin
           .from("beacons")
-          .select("id, last_seen_at")
+          .select("id, name, last_seen_at")
           .eq("secret_code", parsed.pairing_key)
           .maybeSingle();
 
