@@ -179,6 +179,34 @@ function TrackerPage() {
 
   const data = snapshot.data ?? null;
 
+  const wakeQuery = useQuery({
+    queryKey: ["wake-alert", selectedId],
+    enabled: !!selectedId && !!data,
+    queryFn: () => withRefresh(() => fetchWakeAlert({ data: { beaconId: selectedId! } })),
+    retry: false,
+  });
+
+  const wakeOn = wakeQuery.data?.notifyWake ?? false;
+  const wakeGap = wakeQuery.data?.gapMinutes ?? 5;
+
+  async function updateWakeAlert(notifyWake: boolean, gapMinutes: number) {
+    if (!selectedId) return;
+    if (notifyWake && push.state !== "ready") {
+      const ok = await push.enable();
+      if (!ok) {
+        toast.error("Notifications were not allowed on this device");
+        return;
+      }
+    }
+    try {
+      await saveWakeAlert({ data: { beaconId: selectedId, notifyWake, gapMinutes } });
+      await wakeQuery.refetch();
+      toast.success(notifyWake ? "You'll be notified when it wakes up" : "Notifications off");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the setting");
+    }
+  }
+
   // The selected beacon is gone (deleted, or access removed) — drop it,
   // clear its cached snapshot and refresh the list.
   useEffect(() => {
