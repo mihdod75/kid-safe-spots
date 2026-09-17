@@ -131,6 +131,10 @@ function TrackerPage() {
   const pendingTotal =
     (pendingQuery.data?.enrollments ?? 0) + (pendingQuery.data?.accessRequests ?? 0);
 
+  const push = usePushSubscription();
+  const fetchWakeAlert = useServerFn(getWakeAlert);
+  const saveWakeAlert = useServerFn(setWakeAlert);
+
   useEffect(() => {
     if (listQuery.error instanceof Error && /unauthor/i.test(listQuery.error.message)) {
       navigate({ to: "/auth", replace: true });
@@ -174,6 +178,34 @@ function TrackerPage() {
   });
 
   const data = snapshot.data ?? null;
+
+  const wakeQuery = useQuery({
+    queryKey: ["wake-alert", selectedId],
+    enabled: !!selectedId && !!data,
+    queryFn: () => withRefresh(() => fetchWakeAlert({ data: { beaconId: selectedId! } })),
+    retry: false,
+  });
+
+  const wakeOn = wakeQuery.data?.notifyWake ?? false;
+  const wakeGap = wakeQuery.data?.gapMinutes ?? 5;
+
+  async function updateWakeAlert(notifyWake: boolean, gapMinutes: number) {
+    if (!selectedId) return;
+    if (notifyWake && push.state !== "ready") {
+      const ok = await push.enable();
+      if (!ok) {
+        toast.error("Notifications were not allowed on this device");
+        return;
+      }
+    }
+    try {
+      await saveWakeAlert({ data: { beaconId: selectedId, notifyWake, gapMinutes } });
+      await wakeQuery.refetch();
+      toast.success(notifyWake ? "You'll be notified when it wakes up" : "Notifications off");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not save the setting");
+    }
+  }
 
   // The selected beacon is gone (deleted, or access removed) — drop it,
   // clear its cached snapshot and refresh the list.
@@ -446,6 +478,69 @@ function TrackerPage() {
                   Stop following
                 </Button>
               </div>
+
+              {data && (
+                <div className="mt-5 border-t border-border pt-4">
+                  <label className="flex items-start justify-between gap-3">
+                    <span>
+                      <span className="text-sm font-medium">Notify me when it wakes up</span>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        A notification when this beacon starts sending again after a quiet spell.
+                      </span>
+                    </span>
+                    <input
+                      type="checkbox"
+                      className="mt-1 h-4 w-4 shrink-0 accent-primary"
+                      checked={wakeOn}
+                      disabled={
+                        push.busy ||
+                        wakeQuery.isPending ||
+                        ["unsupported", "install-on-ios", "open-in-new-tab", "denied"].includes(
+                          push.state,
+                        )
+                      }
+                      onChange={(e) => updateWakeAlert(e.target.checked, wakeGap)}
+                    />
+                  </label>
+
+                  {wakeOn && (
+                    <div className="mt-3 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Quiet for at least</span>
+                      {GAP_OPTIONS.map((minutes) => (
+                        <Button
+                          key={minutes}
+                          size="sm"
+                          variant={minutes === wakeGap ? "default" : "outline"}
+                          onClick={() => updateWakeAlert(true, minutes)}
+                        >
+                          {minutes < 60 ? `${minutes} min` : "1 h"}
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+
+                  {push.state === "open-in-new-tab" && (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      Open the app in its own browser tab to allow notifications.
+                    </p>
+                  )}
+                  {push.state === "install-on-ios" && (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      On iPhone, add this site to your home screen first, then turn this on.
+                    </p>
+                  )}
+                  {push.state === "denied" && (
+                    <p className="mt-3 text-xs text-destructive">
+                      Notifications are blocked for this site — allow them in your browser settings.
+                    </p>
+                  )}
+                  {push.state === "unsupported" && (
+                    <p className="mt-3 text-xs text-muted-foreground">
+                      This browser cannot show notifications.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
