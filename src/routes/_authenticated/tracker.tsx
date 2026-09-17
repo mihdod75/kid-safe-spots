@@ -131,6 +131,10 @@ function TrackerPage() {
   const pendingTotal =
     (pendingQuery.data?.enrollments ?? 0) + (pendingQuery.data?.accessRequests ?? 0);
 
+  const push = usePushSubscription();
+  const fetchWakeAlert = useServerFn(getWakeAlert);
+  const saveWakeAlert = useServerFn(setWakeAlert);
+
   useEffect(() => {
     if (listQuery.error instanceof Error && /unauthor/i.test(listQuery.error.message)) {
       navigate({ to: "/auth", replace: true });
