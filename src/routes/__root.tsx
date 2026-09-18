@@ -125,7 +125,21 @@ function RootComponent() {
       router.invalidate();
       if (event !== "SIGNED_OUT") queryClient.invalidateQueries();
     });
-    return () => data.subscription.unsubscribe();
+    // When the tab comes back after being hidden, make sure the stored session
+    // is refreshed right away instead of waiting for the next failed request.
+    const onVisible = () => {
+      if (document.visibilityState === "visible") {
+        void supabase.auth.getSession();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("online", onVisible);
+
+    return () => {
+      data.subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("online", onVisible);
+    };
   }, [router, queryClient]);
 
   return (
