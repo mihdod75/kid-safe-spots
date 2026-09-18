@@ -334,6 +334,9 @@ function TrackerPage() {
               </Link>
             </Button>
           )}
+          <Button variant="ghost" size="sm" asChild>
+            <Link to="/download">Download</Link>
+          </Button>
           <Button variant="ghost" size="sm" onClick={handleSignOut}>
             Sign out
           </Button>
