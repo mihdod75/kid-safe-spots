@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as AuthRouteImport } from './routes/auth'
+import { Route as DownloadRouteImport } from './routes/download'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedTrackerRouteImport } from './routes/_authenticated/tracker'
 import { Route as ApiPublicBeaconRouteImport } from './routes/api/public/beacon'
@@ -30,6 +31,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DownloadRoute = DownloadRouteImport.update({
+  id: '/download',
+  path: '/download',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
@@ -62,6 +68,7 @@ const ApiPublicBeaconEnrollStatusRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/download': typeof DownloadRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/tracker': typeof AuthenticatedTrackerRoute
   '/api/public/beacon': typeof ApiPublicBeaconRoute
@@ -71,6 +78,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/download': typeof DownloadRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/tracker': typeof AuthenticatedTrackerRoute
   '/api/public/beacon': typeof ApiPublicBeaconRoute
@@ -82,6 +90,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/download': typeof DownloadRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/tracker': typeof AuthenticatedTrackerRoute
   '/api/public/beacon': typeof ApiPublicBeaconRoute
@@ -93,6 +102,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/download'
     | '/admin'
     | '/tracker'
     | '/api/public/beacon'
@@ -102,6 +112,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/download'
     | '/admin'
     | '/tracker'
     | '/api/public/beacon'
@@ -112,6 +123,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/download'
     | '/_authenticated/admin'
     | '/_authenticated/tracker'
     | '/api/public/beacon'
@@ -123,6 +135,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  DownloadRoute: typeof DownloadRoute
   ApiPublicBeaconRoute: typeof ApiPublicBeaconRoute
   ApiPublicBeaconEnrollRoute: typeof ApiPublicBeaconEnrollRoute
   ApiPublicBeaconEnrollStatusRoute: typeof ApiPublicBeaconEnrollStatusRoute
@@ -149,6 +162,13 @@ declare module '@tanstack/react-router' {
       path: '/auth'
       fullPath: '/auth'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/download': {
+      id: '/download'
+      path: '/download'
+      fullPath: '/download'
+      preLoaderRoute: typeof DownloadRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/admin': {
@@ -206,6 +226,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  DownloadRoute: DownloadRoute,
   ApiPublicBeaconRoute: ApiPublicBeaconRoute,
   ApiPublicBeaconEnrollRoute: ApiPublicBeaconEnrollRoute,
   ApiPublicBeaconEnrollStatusRoute: ApiPublicBeaconEnrollStatusRoute,
