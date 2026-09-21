@@ -23,7 +23,35 @@ export type BeaconSnapshot = {
     accuracyM: number | null;
     recordedAt: string;
   } | null;
+  trip: {
+    /** Metres covered since the beacon last started sending after a quiet spell. */
+    distanceM: number;
+    /** Timestamp of the first position in that stretch. */
+    since: string;
+    points: number;
+  } | null;
 };
+
+/** A quiet spell of this long starts a new "trip". */
+const WAKE_GAP_MS = 5 * 60 * 1000;
+/** Ignore jitter hops below this — parked phones drift a few metres. */
+const MIN_STEP_M = 15;
+
+function metresBetween(
+  a: { latitude: number; longitude: number },
+  b: { latitude: number; longitude: number },
+) {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
 
 // Keep database details server-side; the browser only ever sees a safe message.
 export function failSafely(error: unknown, userMessage: string): never {
