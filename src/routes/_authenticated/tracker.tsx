@@ -462,6 +462,21 @@ function TrackerPage() {
                 </div>
               </dl>
 
+              {data?.trip && (
+                <div className="mt-4 rounded-lg bg-muted px-3 py-2">
+                  <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                    Travelled since waking up
+                  </p>
+                  <p className="mt-1 text-lg font-semibold">
+                    {formatDistance(data.trip.distanceM)}
+                    <span className="ml-2 text-xs font-normal text-muted-foreground">
+                      since {timeAgo(data.trip.since)}
+                    </span>
+                  </p>
+                </div>
+              )}
+
+
               {stale && (
                 <p className="mt-4 rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   No fresh signal for over 10 minutes.
