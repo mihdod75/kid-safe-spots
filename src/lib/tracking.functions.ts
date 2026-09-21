@@ -131,13 +131,33 @@ export const getBeacon = createServerFn({ method: "POST" })
     if (!beacon) return null;
 
 
-    const { data: latest } = await supabase
+    // Retention keeps at most a day of history, so this is a bounded read.
+    const { data: history } = await supabase
       .from("beacon_positions")
       .select("latitude, longitude, accuracy_m, recorded_at")
       .eq("beacon_id", data.beaconId)
       .order("recorded_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+      .limit(3000);
+
+    const rows = (history ?? []).slice().reverse();
+    const latest = rows.length ? rows[rows.length - 1]! : null;
+
+    // Walk back from the newest point until a quiet spell is found: that is
+    // where the current trip started.
+    let start = rows.length ? rows.length - 1 : 0;
+    while (start > 0) {
+      const gap =
+        new Date(rows[start]!.recorded_at).getTime() -
+        new Date(rows[start - 1]!.recorded_at).getTime();
+      if (gap >= WAKE_GAP_MS) break;
+      start -= 1;
+    }
+
+    let distanceM = 0;
+    for (let i = start + 1; i < rows.length; i += 1) {
+      const step = metresBetween(rows[i - 1]!, rows[i]!);
+      if (step >= MIN_STEP_M) distanceM += step;
+    }
 
     return {
       beacon: {
@@ -155,6 +175,14 @@ export const getBeacon = createServerFn({ method: "POST" })
             recordedAt: latest.recorded_at,
           }
         : null,
+      trip:
+        rows.length > start + 1
+          ? {
+              distanceM: Math.round(distanceM),
+              since: rows[start]!.recorded_at,
+              points: rows.length - start,
+            }
+          : null,
     };
   });
 
