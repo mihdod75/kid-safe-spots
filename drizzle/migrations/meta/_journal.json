@@ -120,6 +120,13 @@
       "when": 1789563365055,
       "tag": "0016_push_wake_alerts",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1789951141976,
+      "tag": "0017_beacon_positions_one_day_retention",
+      "breakpoints": true
     }
   ]
 }
