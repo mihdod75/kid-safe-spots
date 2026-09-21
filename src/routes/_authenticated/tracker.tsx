@@ -70,6 +70,13 @@ function timeAgo(iso: string | null) {
   return `${Math.round(hours / 24)} days ago`;
 }
 
+function formatDistance(metres: number) {
+  if (metres < 1000) return `${Math.round(metres / 10) * 10} m`;
+  return `${(metres / 1000).toFixed(metres < 10000 ? 2 : 1)} km`;
+}
+
+
+
 function TrackerPage() {
   const fetchList = useServerFn(listBeacons);
   const fetchBeacon = useServerFn(getBeacon);
