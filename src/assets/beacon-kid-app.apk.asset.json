@@ -1,11 +1,11 @@
 {
   "version": 1,
-  "asset_id": "7985179b-ad7d-4e3d-b4b9-0d5fcd4d1c5b",
+  "asset_id": "c497d9f7-e52d-4751-93f7-78f4a080fbf8",
   "project_id": "dba904b8-c3c9-4e5e-9c9f-78d7213139c5",
-  "url": "/__l5e/assets-v1/7985179b-ad7d-4e3d-b4b9-0d5fcd4d1c5b/beacon-kid-app.apk",
-  "r2_key": "a/v1/dba904b8-c3c9-4e5e-9c9f-78d7213139c5/7985179b-ad7d-4e3d-b4b9-0d5fcd4d1c5b/beacon-kid-app.apk",
+  "url": "/__l5e/assets-v1/c497d9f7-e52d-4751-93f7-78f4a080fbf8/beacon-kid-app.apk",
+  "r2_key": "a/v1/dba904b8-c3c9-4e5e-9c9f-78d7213139c5/c497d9f7-e52d-4751-93f7-78f4a080fbf8/beacon-kid-app.apk",
   "original_filename": "beacon-kid-app.apk",
   "size": 12948005,
-  "content_type": "application/zip",
-  "created_at": "2026-09-25T13:07:27Z"
+  "content_type": "application/vnd.android.package-archive",
+  "created_at": "2026-09-25T13:07:51Z"
 }
