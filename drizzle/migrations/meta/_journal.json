@@ -127,6 +127,13 @@
       "when": 1789951141976,
       "tag": "0017_beacon_positions_one_day_retention",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1790580480215,
+      "tag": "0018_demo_beacon",
+      "breakpoints": true
     }
   ]
 }

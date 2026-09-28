@@ -194,6 +194,25 @@ export const requestAccess = createServerFn({ method: "POST" })
     return { beaconId: data.beaconId, note: note || null };
   })
   .handler(async ({ data, context }) => {
+    // Demo beacons are open to every signed-in user: approve instantly.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: beacon } = await supabaseAdmin
+      .from("beacons")
+      .select("is_demo")
+      .eq("id", data.beaconId)
+      .maybeSingle();
+    if (beacon?.is_demo) {
+      const { error } = await supabaseAdmin.from("beacon_watchers").insert({
+        beacon_id: data.beaconId,
+        user_id: context.userId,
+        status: "approved",
+        decided_at: new Date().toISOString(),
+        note: data.note,
+      });
+      if (error) failSafely(error, "Could not add the demo beacon.");
+      return { ok: true };
+    }
+
     const { error } = await context.supabase.from("beacon_watchers").insert({
       beacon_id: data.beaconId,
       user_id: context.userId,
