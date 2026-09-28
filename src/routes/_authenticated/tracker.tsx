@@ -181,7 +181,9 @@ function TrackerPage() {
     enabled: !!selectedId,
     queryFn: () => withRefresh(() => fetchBeacon({ data: { beaconId: selectedId! } })),
     retry: false,
-    refetchInterval: 60_000,
+    // The demo beacon only moves while someone is looking, so poll it faster.
+    refetchInterval: (query) =>
+      query.state.data?.beacon.name === "DUMMYBEACON" ? 10_000 : 60_000,
   });
 
   const data = snapshot.data ?? null;
