@@ -121,6 +121,17 @@ export const getBeacon = createServerFn({ method: "POST" })
     }
 
 
+    // Demo beacons only emit while someone is watching: advance them on read.
+    {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      const { data: demo } = await supabaseAdmin
+        .from("beacons")
+        .select("is_demo")
+        .eq("id", data.beaconId)
+        .maybeSingle();
+      if (demo?.is_demo) await supabaseAdmin.rpc("tick_demo_beacons");
+    }
+
     const { data: beacon, error } = await supabase
       .from("beacons")
       .select("id, name, battery_level, last_seen_at")

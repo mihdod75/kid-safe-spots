@@ -327,7 +327,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      tick_demo_beacons: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "user"
