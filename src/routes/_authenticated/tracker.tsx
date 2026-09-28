@@ -285,8 +285,11 @@ function TrackerPage() {
   async function handleRequest(beaconId: string) {
     try {
       await askAccess({ data: { beaconId } });
+      // Following again (e.g. the demo beacon) must make it selectable again.
+      goneRef.current.delete(beaconId);
       await listQuery.refetch();
-      toast.success("Request sent — an admin will review it");
+      const isDemo = beacons.find((b) => b.id === beaconId)?.name === "DUMMYBEACON";
+      toast.success(isDemo ? "Demo beacon added" : "Request sent — an admin will review it");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Could not send the request");
     }
@@ -306,6 +309,10 @@ function TrackerPage() {
   async function handleStop(beaconId: string) {
     if (!window.confirm("Stop following this beacon?")) return;
     try {
+      // Deselect first so no refresh fires for a beacon we no longer follow.
+      if (selectedId === beaconId) setSelectedId(null);
+      queryClient.removeQueries({ queryKey: ["beacon", beaconId] });
+      setLive(false);
       await unfollow({ data: { beaconId } });
       await listQuery.refetch();
       toast.success("Removed from your list");

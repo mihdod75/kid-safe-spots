@@ -116,9 +116,9 @@ export const getBeacon = createServerFn({ method: "POST" })
       .maybeSingle();
 
     // Everyone, admins included, must be an approved follower to see a position.
-    if (watcher?.status !== "approved") {
-      throw new Error("You do not have access to this beacon.");
-    }
+    // No access (e.g. just stopped following) is treated like a removed beacon:
+    // return null so the page clears the selection instead of crashing.
+    if (watcher?.status !== "approved") return null;
 
 
     // Demo beacons only emit while someone is watching: advance them on read.
