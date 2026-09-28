@@ -152,6 +152,7 @@ export type Database = {
           battery_level: number | null
           created_at: string
           id: string
+          is_demo: boolean
           last_seen_at: string | null
           name: string
           secret_code: string
@@ -161,6 +162,7 @@ export type Database = {
           battery_level?: number | null
           created_at?: string
           id?: string
+          is_demo?: boolean
           last_seen_at?: string | null
           name?: string
           secret_code: string
@@ -170,6 +172,7 @@ export type Database = {
           battery_level?: number | null
           created_at?: string
           id?: string
+          is_demo?: boolean
           last_seen_at?: string | null
           name?: string
           secret_code?: string
